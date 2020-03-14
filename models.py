@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from copy import deepcopy
+import torch
 
 class PredictiveCodingLayer(object):
   def __init__(self,input_size, output_size, batch_size, fn,fn_deriv,learning_rate):
@@ -181,7 +182,7 @@ class AmortisedPredictiveCodingNetwork(object):
     self.amortised_predictions[0] = deepcopy(img_batch)
     for l in range(self.L):
       self.amortised_predictions[l+1] = self.qlayers[l].predict(self.amortised_predictions[l])
-      self.layers[l].mu = self.amortised_predictions[l+1]
+      self.layers[l].mu = deepcopy(self.amortised_predictions[l+1])
     for i in reversed(range(self.L)):
       self.predictions[i] = self.layers[i].predict()
     for n in range(self.n_inference_steps):
@@ -212,7 +213,7 @@ class AmortisedPredictiveCodingNetwork(object):
     self.amortised_predictions[0] = deepcopy(img_batch)
     for l in range(self.L):
       self.amortised_predictions[l+1] = self.qlayers[l].predict(self.amortised_predictions[l])
-      self.layers[l].mu = self.amortised_predictions[l+1]
+      self.layers[l].mu = deepcopy(self.amortised_predictions[l+1])
     for i in reversed(range(self.L)):
       self.predictions[i] = self.layers[i].predict()
     for n in range(self.n_inference_steps * 10):
@@ -246,28 +247,80 @@ class AmortisedPredictiveCodingNetwork(object):
         correct +=1
     return correct / batch_size
 
-  def plot_batch_results(self,pred_labels,true_labels):
+  def plot_batch_results(self,pred_labels,amortised_labels, true_labels):
     batch_size = pred_labels.shape[1]
     for b in range(batch_size):
+      print("True labels: ", true_labels[:,b])
+      print("Variational predictions: ")
       plt.plot(pred_labels[:,b])
       plt.show()
-      print(true_labels[:,b])
+      print("Amortised Predictions: ",)
+      plt.plot(amortised_labels[:,b])
+      plt.show()
+
 
   def train(self, imglist, labellist, n_epochs):
     prediction_errors = []
+    amortised_prediction_errors = []
+    variational_accs = []
+    amortised_accs = []
     for n in range(n_epochs):
-      print("Epoch ", n)
-      batch_pes = []
-      for (img_batch,label_batch) in zip(imglist, labellist):
-        pes, preds,qpreds, qpes = self.infer(img_batch,label_batch)
+        print("Epoch ", n)
+        batch_pes = []
+        batch_qpes = []
+        for (img_batch,label_batch) in zip(imglist, labellist):
+            pes, preds,qpreds, qpes = self.infer(img_batch,label_batch)
+            batch_pes.append(np.array([np.sum(pe) for pe in pes]))
+            batch_qpes.append(np.array([np.sum(qpe) for qpe in qpes]))
 
-      if n % 10 == 0:
-        tot_acc = 0
-        q_acc = 0
-        for (img_batch, label_batch) in zip(imglist, labellist):
-          pred_imgs, pred_labels = self.test(img_batch,label_batch)
-          tot_acc += self.accuracy(pred_labels, label_batch)
-          pred_qlabels = self.amortised_test(img_batch)
-          q_acc += self.accuracy(pred_qlabels, label_batch)
-        print("Accuracy: ", tot_acc/len(imglist))
-        print("Amortised Accuracy: ", q_acc / len(imglist))
+        prediction_errors.append(np.array(batch_pes))
+        amortised_prediction_errors.append(np.array(batch_qpes))
+
+        if n % 10 == 0:
+            tot_acc = 0
+            q_acc = 0
+            for (img_batch, label_batch) in zip(imglist, labellist):
+              pred_imgs, pred_labels = self.test(img_batch,label_batch)
+              tot_acc += self.accuracy(pred_labels, label_batch)
+              pred_qlabels = self.amortised_test(img_batch)
+              q_acc += self.accuracy(pred_qlabels, label_batch)
+            print("Accuracy: ", tot_acc/len(imglist))
+            print("Amortised Accuracy: ", q_acc / len(imglist))
+            variational_accs.append(tot_acc/len(imglist))
+            amortised_accs.append(q_acc / len(imglist))
+
+
+    prediction_errors = np.array(prediction_errors)
+    amortised_prediction_errors = np.array(amortised_prediction_errors)
+    print("Prediction error shapes")
+    print(prediction_errors.shape)
+    print(amortised_prediction_errors.shape)
+    prediction_errors = torch.mean(torch.from_numpy(prediction_errors),dim=1).numpy()
+    amortised_prediction_errors = torch.mean(torch.from_numpy(amortised_prediction_errors),dim=1).numpy()
+    print(prediction_errors.shape)
+    print(amortised_prediction_errors.shape)
+    for i in range(self.L):
+        plt.title("Average Variational Prediction Errors Layer " + str(i))
+        plt.xlabel("Epoch")
+        plt.ylabel("Prediction Errors")
+        plt.plot(prediction_errors[:,i])
+        plt.show()
+        plt.title("Average Amortised Prediction Errors Layer " + str(i))
+        plt.xlabel("Epoch")
+        plt.ylabel("Prediction Errors")
+        plt.plot(amortised_prediction_errors[:,i])
+        plt.show()
+    #pred_imgs, pred_labels = self.test(imglist[0],labellist[0])
+    #pred_qlabels = self.amortised_test(imglist[0])
+    #self.plot_batch_results(pred_labels, pred_qlabels, labellist[0])
+    print("Accuracy plots")
+    plt.title("Variational Accuracy")
+    plt.xlabel("Epoch number")
+    plt.ylabel("Proportion correct")
+    plt.plot(variational_accs)
+    plt.show()
+    plt.title("Amortised Accuracy")
+    plt.xlabel("Epoch number")
+    plt.ylabel("Proportion correct")
+    plt.plot(amortised_accs)
+    plt.show()
