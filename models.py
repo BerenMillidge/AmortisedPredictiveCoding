@@ -129,38 +129,6 @@ class PredictiveCodingNetwork(object):
           tot_acc += self.accuracy(pred_labels, label_batch)
         print("Accuracy: ", tot_acc/num_batches)
 
-class PredictiveCodingLayer(object):
-  def __init__(self,input_size, output_size, batch_size, fn,fn_deriv,learning_rate):
-    self.input_size = input_size
-    self.output_size = output_size
-    self.batch_size = batch_size
-    self.fn = fn
-    self.fn_deriv = fn_deriv
-    self.learning_rate = learning_rate
-    self.weights = np.random.normal(0,0.1,[input_size, output_size])
-    print(input_size, batch_size)
-    self.mu = np.random.normal(0,1,[output_size,batch_size])
-
-  def _update_mu(self, pe, pe_below):
-    self.mu+= self.learning_rate * (-pe + (np.dot(self.weights.T, pe_below *self.fn_deriv(np.dot(self.weights, self.mu)))))
-
-  def step(self,pe_below,pred,use_top_down_pe=True):
-    #print("pe below: ",pe_below.shape, "pred ", pred.shape, "mu ", self.mu.shape, "weights ",self.weights.shape)
-    if use_top_down_pe:
-      pe = self.mu - pred
-    else:
-      # if the top layer no prediction errors are generated
-      pe = np.zeros_like(self.mu)
-    self.mu+= self.learning_rate * (-pe + (np.dot(self.weights.T, pe_below *self.fn_deriv(np.dot(self.weights, self.mu)))))
-    return pe, self.predict()
-
-  def predict(self):
-    return self.fn(np.dot(self.weights, self.mu))
-
-  def update_weights(self,pe_below):
-    self.weights += self.learning_rate * (np.dot(pe_below * self.fn_deriv(np.dot(self.weights, self.mu)), self.mu.T))
-
-
 class AmortisationLayer(object):
   def __init__(self, forward_size, backward_size, learning_rate, batch_size, qf, dqf):
     self.forward_size = forward_size
