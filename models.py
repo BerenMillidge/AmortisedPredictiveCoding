@@ -1,5 +1,6 @@
 import numpy as np
-
+import matplotlib.pyplot as plt
+from copy import deepcopy
 
 class PredictiveCodingLayer(object):
   def __init__(self,input_size, output_size, batch_size, fn,fn_deriv,learning_rate):
@@ -9,12 +10,18 @@ class PredictiveCodingLayer(object):
     self.fn = fn
     self.fn_deriv = fn_deriv
     self.learning_rate = learning_rate
-    self.weights = np.random.normal(0,0.1,[output_size, input_size])
-    self.mu = np.random.normal(0,1,[input_size,batch_size])
+    self.weights = np.random.normal(0,0.1,[input_size, output_size])
+    print(input_size, batch_size)
+    self.mu = np.random.normal(0,1,[output_size,batch_size])
 
-  def step(self,pe_below,pred):
-    #print("pe below: ",pe_below.shape, "pred ", pred.shape, "mu ", self.mu.shape, "weights ",self.weights.shape)
-    pe = self.mu - pred
+  def _update_mu(self, pe, pe_below):
+    self.mu+= self.learning_rate * (-pe + (np.dot(self.weights.T, pe_below *self.fn_deriv(np.dot(self.weights, self.mu)))))
+
+  def step(self,pe_below,pred,use_top_down_pe=True):
+    if use_top_down_pe:
+      pe = self.mu - pred
+    else:
+      pe = np.zeros_like(self.mu)
     self.mu+= self.learning_rate * (-pe + (np.dot(self.weights.T, pe_below *self.fn_deriv(np.dot(self.weights, self.mu)))))
     return pe, self.predict()
 
@@ -25,76 +32,70 @@ class PredictiveCodingLayer(object):
     self.weights += self.learning_rate * (np.dot(pe_below * self.fn_deriv(np.dot(self.weights, self.mu)), self.mu.T))
 
 class PredictiveCodingNetwork(object):
-  def __init__(self, layer_sizes, learning_rate,batch_size,n_inference_steps,fn,fn_deriv):
-    #layer size includes input and output
-    self.layer_sizes = layer_sizes[::-1]
-    self.learning_rate = learning_rate
+
+  def __init__(self, layer_sizes,batch_size,learning_rate, f,df,n_inference_steps):
+    self.layer_sizes = layer_sizes
     self.batch_size = batch_size
-    self.fn = fn
-    self.fn_deriv = fn_deriv
-    self.layers = []
+    self.learning_rate = learning_rate
+    self.f = f
+    self.df = df
     self.n_inference_steps = n_inference_steps
-    for i in range(1,len(self.layer_sizes)):
-      layer = PredictiveCodingLayer(self.layer_sizes[i-1],self.layer_sizes[i],self.batch_size, self.fn, self.fn_deriv, self.learning_rate)
-      self.layers.append(layer)
+    self.layers = []
+    for i in range(len(self.layer_sizes)-1):
+      self.layers.append(PredictiveCodingLayer(self.layer_sizes[i], self.layer_sizes[i+1], self.batch_size, self.f,self.df,self.learning_rate))
+    self.predictions = [[]for i in range(len(self.layer_sizes))]
+    self.prediction_errors = [[] for i in range(len(self.layer_sizes))]
+    self.L = len(self.layers)
 
-    self.predictions = [[] for i in range(len(self.layers)+1)]
-    self.prediction_errors = [[] for i in range(len(self.layers)+1)]
-    self.predictions[0] = np.zeros([self.layer_sizes[0],batch_size])
+  def _reset_mus(self):
+    # to prevent horrible and weird state corruption/dependencies between trials which give all manner of lovely bugs.
+    for layer in self.layers:
+        layer.mu = np.random.normal(0,1,[layer.output_size,layer.batch_size])
 
-  def infer(self, inp, label):
-    self.layers[0].mu = label
-    #initialize predictions
-    for i,layer in enumerate(self.layers):
-      self.predictions[i+1] = layer.predict()
-      self.prediction_errors[i] = layer.mu - self.predictions[i]
-    #setup bottom prediction error
-    self.prediction_errors[-1]= inp - self.predictions[-1]
-    #run inference step
+  def infer(self, img_batch,label_batch):
+    self._reset_mus()
+    prediction_errors = [[] for i in range(self.L)]
+    self.layers[-1].mu = deepcopy(label_batch)
+    for i in reversed(range(self.L)):
+      self.predictions[i] = self.layers[i].predict()
     for n in range(self.n_inference_steps):
-      for i,layer in enumerate(self.layers):
-        pe,pred = layer.step(self.prediction_errors[i+1],self.predictions[i])
-        self.predictions[i+1] = pred
-        self.prediction_errors[i] = pe
-      self.layers[0].mu = label #fix output to correct label
-    #update weights
-    for i,layer in enumerate(self.layers):
-      layer.update_weights(self.prediction_errors[i+1])
+      self.prediction_errors[0] = img_batch - self.predictions[0]
+      self.predictions[-1] = np.zeros_like(self.layers[-1].mu)
+      for l in range(self.L):
+        self.prediction_errors[l+1] = self.layers[l].mu - self.predictions[l+1]
+        if l !=self.L-1:
+          self.layers[l]._update_mu(self.prediction_errors[l+1],self.prediction_errors[l])
+        else:
+          self.layers[l]._update_mu(np.zeros_like(self.layers[l].mu), self.prediction_errors[l])
+        self.predictions[l] = self.layers[l].predict()
+      self.layers[-1].mu = deepcopy(label_batch)
+      self.predictions[-1] = self.layers[-1].mu
 
-    return self.prediction_errors
+    for l in range(self.L):
+      self.layers[l].update_weights(self.prediction_errors[l])
+    return self.prediction_errors, self.predictions
 
-  def train(self, imglist, labellist,n_epochs):
-    prediction_errors = []
-    for i in range(n_epochs):
-      print("Epoch: ",i)
-      for (img_batch, label_batch) in zip(imglist, labellist):
-        pes = self.infer(img_batch, label_batch)
-        prediction_errors.append([np.sum(pe) for pe in pes])
 
-      if i % 10 ==0:
-        pred_imgs, pred_labels = self.test(imglist[0])
-        accuracy = self.accuracy(pred_labels, labellist[0])
-        print("Accuracy: ", accuracy)
 
-      if i % n_epochs-1 == 0 and i !=1:
-        self.plot_batch_results(pred_labels,labellist[0])
+  def test(self, img_batch, label_batch):
+    self._reset_mus()
+    prediction_errors = [[] for i in range(self.L)]
+    for i in reversed(range(self.L)):
+      self.predictions[i] = self.layers[i].predict()
+    for n in range(self.n_inference_steps * 10):
+      self.prediction_errors[0] = img_batch - self.predictions[0]
+      self.predictions[-1] = np.zeros_like(self.layers[-1].mu)
+      for l in range(self.L):
+        self.prediction_errors[l+1] = self.layers[l].mu - self.predictions[l+1]
+        if l !=self.L-1:
+          self.layers[l]._update_mu(self.prediction_errors[l+1],self.prediction_errors[l])
+        else:
+          self.layers[l]._update_mu(np.zeros_like(self.layers[l].mu), self.prediction_errors[l])
+        self.predictions[l] = self.layers[l].predict()
 
-    return prediction_errors
 
-  def test(self,img_batch):
-    #initialize predictions
-    for i,layer in enumerate(self.layers):
-      self.predictions[i+1] = layer.predict()
-    #setup bottom prediction error
-    self.prediction_errors[-1]= inp - self.predictions[-1]
-    #run inference step
-    for n in range(self.n_inference_steps):
-      for i,layer in enumerate(self.layers):
-        pe,pred = layer.step(self.prediction_errors[i+1],self.predictions[i])
-        self.predictions[i+1] = pred
-        self.prediction_errors[i] = pe
-    pred_labels = self.layers[0].mu
-    pred_imgs = self.predictions[-1]
+    pred_labels = self.layers[-1].mu
+    pred_imgs = self.predictions[0]
     return pred_imgs, pred_labels
 
   def accuracy(self,pred_labels, true_labels):
@@ -112,141 +113,162 @@ class PredictiveCodingNetwork(object):
       plt.show()
       print(true_labels[:,b])
 
-class AmortisationLayer(object):
-  def __init__(self, input_size, output_size,learning_rate, batch_size, q_fn, q_fn_deriv):
-    self.input_size = input_size
-    self.output_size = output_size
-    self.learning_rate = learning_rate
-    self.batch_size = batch_size
-    self.q_fn = q_fn
-    self.q_fn_deriv = q_fn_deriv
-
-    self.weights = np.random.normal(0,0.1, [self.input_size, self.output_size])
-
-  def predict(self,state):
-    return self.q_fn(np.dot(self.weights, state))
-
-  def update_weights(self,amortised_prediction_errors, state):
-    self.weights +=self.learning_rate * (np.dot(amortised_prediction_errors * self.q_fn_deriv(np.dot(self.weights, state)), state.T))
-
-
-
-class AmortisedPredictiveCodingNetwork(object):
-  def __init__(self, layer_sizes, learning_rate,amortised_learning_rate, batch_size, n_inference_steps, fn,fn_deriv, q_fn, q_fn_deriv):
-    self.layer_sizes = layer_sizes[::-1]
-    self.learning_rate = learning_rate
-    self.amortised_learning_rate = amortised_learning_rate
-    self.batch_size = batch_size
-    self.n_inference_steps = n_inference_steps
-    self.fn = fn
-    self.fn_deriv = fn_deriv
-    self.q_fn = q_fn
-    self.q_fn_deriv = q_fn_deriv
-    self.layers = []
-    self.amortised_layers = []
-    self.n_inference_steps = n_inference_steps
-    for i in range(1,len(self.layer_sizes)):
-      layer = PredictiveCodingLayer(self.layer_sizes[i-1],self.layer_sizes[i],self.batch_size, self.fn, self.fn_deriv, self.learning_rate)
-      self.layers.append(layer)
-      amortised_layer = AmortisationLayer(self.layer_sizes[i-1],self.layer_sizes[i], self.amortised_learning_rate,self.batch_size, self.q_fn, self.q_fn_deriv)
-      self.amortised_layers.append(amortised_layer)
-
-    self.predictions = [[] for i in range(len(self.layers)+1)]
-    self.prediction_errors = [[] for i in range(len(self.layers)+1)]
-    self.predictions[0] = np.zeros([self.layer_sizes[0],batch_size])
-    self.amortised_predictions = [[] for i in range(len(self.layers)+1)]
-    self.amortised_prediction_errors = [[] for i in range(len(self.layers))]
-
-  def infer(self, inp, label):
-    self.layers[0].mu = label
-    #initialize predictions
-    for i,layer in enumerate(self.layers):
-      self.predictions[i+1] = layer.predict()
-      self.prediction_errors[i] = layer.mu - self.predictions[i]
-    self.prediction_errors[-1]= inp - self.predictions[-1]
-    self.amortised_predictions[-1] = inp
-    #setup amortised predictions (which run in reverse)
-    for i in reversed(range(len(self.amortised_layers))):
-      self.amortised_predictions[i] = self.amortised_layers[i].predict(self.amortised_predictions[i+1])
-      #setup the initial condition of the variational descent to be the amortised prediction
-      self.layers[i].mu = deepcopy(self.amortised_predictions[i])
-    #run inference step
-    self.layers[0].mu = label
-    for n in range(self.n_inference_steps):
-      for i,layer in enumerate(self.layers):
-        pe,pred = layer.step(self.prediction_errors[i+1],self.predictions[i])
-        self.predictions[i+1] = pred
-        self.prediction_errors[i] = pe
-      self.layers[0].mu = label #fix output to correct label
-    #update weights
-    for i,layer in enumerate(self.layers):
-      layer.update_weights(self.prediction_errors[i+1])
-
-    #compute amortised prediction errors and update weights
-    for i,(layer,qlayer) in enumerate(zip(self.layers, self.amortised_layers)):
-      q_pe = layer.mu - self.amortised_predictions[i]
-      self.amortised_prediction_errors[i] =q_pe
-      #print("amortised weights: ",i, len(self.amortised_layers))
-      if i == len(self.amortised_layers)-1: # if bottom layer then use input as input
-        qlayer.update_weights(q_pe, inp)
-      else:
-        qlayer.update_weights(q_pe, self.layers[i+1].mu)
-
-    return self.prediction_errors, self.amortised_prediction_errors
 
   def train(self, imglist, labellist, n_epochs):
     prediction_errors = []
-    amortisation_prediction_errors = []
-    for i in range(n_epochs):
-      print("Epoch: ",i)
-      for (img_batch, label_batch) in zip(imglist, labellist):
-        pes,q_pes = self.infer(img_batch, label_batch)
-        prediction_errors.append([np.sum(pe) for pe in pes])
-        amortisation_prediction_errors.append([np.sum(q_pe) for q_pe in q_pes])
+    for n in range(n_epochs):
+      print("Epoch ", n)
+      batch_pes = []
+      for (img_batch,label_batch) in zip(imglist, labellist):
+        pes, preds = self.infer(img_batch,label_batch)
 
-      if i % 10 ==0:
-        pred_imgs, pred_labels = self.test(imglist[0])
-        print("pred_labels: ", pred_labels)
-        accuracy = self.accuracy(pred_labels, labellist[0])
-        print("Accuracy: ", accuracy)
-        q_labels = self.amortised_test(imglist[0])
-        q_accuracy = self.accuracy(q_labels, labellist[0])
-        print("Amortised Accuracy: ", q_accuracy)
+      if n % 10 == 0:
+        tot_acc = 0
+        for (img_batch, label_batch) in zip(imglist, labellist):
+          pred_imgs, pred_labels = self.test(img_batch,label_batch)
+          tot_acc += self.accuracy(pred_labels, label_batch)
+        print("Accuracy: ", tot_acc/num_batches)
 
-      if i % n_epochs-1 == 0 and i !=1:
-        self.plot_batch_results(pred_labels,labellist[0])
+class PredictiveCodingLayer(object):
+  def __init__(self,input_size, output_size, batch_size, fn,fn_deriv,learning_rate):
+    self.input_size = input_size
+    self.output_size = output_size
+    self.batch_size = batch_size
+    self.fn = fn
+    self.fn_deriv = fn_deriv
+    self.learning_rate = learning_rate
+    self.weights = np.random.normal(0,0.1,[input_size, output_size])
+    print(input_size, batch_size)
+    self.mu = np.random.normal(0,1,[output_size,batch_size])
 
-    return prediction_errors,amortisation_prediction_errors
+  def _update_mu(self, pe, pe_below):
+    self.mu+= self.learning_rate * (-pe + (np.dot(self.weights.T, pe_below *self.fn_deriv(np.dot(self.weights, self.mu)))))
+
+  def step(self,pe_below,pred,use_top_down_pe=True):
+    #print("pe below: ",pe_below.shape, "pred ", pred.shape, "mu ", self.mu.shape, "weights ",self.weights.shape)
+    if use_top_down_pe:
+      pe = self.mu - pred
+    else:
+      # if the top layer no prediction errors are generated
+      pe = np.zeros_like(self.mu)
+    self.mu+= self.learning_rate * (-pe + (np.dot(self.weights.T, pe_below *self.fn_deriv(np.dot(self.weights, self.mu)))))
+    return pe, self.predict()
+
+  def predict(self):
+    return self.fn(np.dot(self.weights, self.mu))
+
+  def update_weights(self,pe_below):
+    self.weights += self.learning_rate * (np.dot(pe_below * self.fn_deriv(np.dot(self.weights, self.mu)), self.mu.T))
 
 
-  def test(self,img_batch):
-    #setup amortised predictions (which run in reverse)
-    self.amortised_predictions[-1] = img_batch
-    for i in reversed(range(len(self.amortised_layers))):
-      self.amortised_predictions[i] = self.amortised_layers[i].predict(self.amortised_predictions[i+1])
-      #setup the initial condition of the variational descent to be the amortised prediction
-      self.layers[i].mu = deepcopy(self.amortised_predictions[i])
-    #initialize predictions
-    for i,layer in enumerate(self.layers):
-      self.predictions[i+1] = layer.predict()
-    #setup bottom prediction error
-    self.prediction_errors[-1]= inp - self.predictions[-1]
-    #run inference step
+class AmortisationLayer(object):
+  def __init__(self, forward_size, backward_size, learning_rate, batch_size, qf, dqf):
+    self.forward_size = forward_size
+    self.backward_size = backward_size
+    self.learning_rate = learning_rate
+    self.batch_szie = batch_size
+    self.qf = qf
+    self.dqf = dqf
+    self.weights = np.random.normal(0,0.1,[self.forward_size, self.backward_size])
+
+  def predict(self, state):
+    return self.qf(np.dot(self.weights, state))
+
+  def update_weights(self, amortised_prediction_errors, state):
+    self.weights += self.learning_rate * (np.dot(amortised_prediction_errors * self.dqf(np.dot(self.weights, state)),state.T))
+
+
+class AmortisedPredictiveCodingNetwork(object):
+  def __init__(self, layer_sizes,batch_size,learning_rate,amortised_learning_rate, f,df,qf,dqf,n_inference_steps):
+    self.layer_sizes = layer_sizes
+    self.batch_size = batch_size
+    self.learning_rate = learning_rate
+    self.amortised_learning_rate = amortised_learning_rate
+    self.f = f
+    self.df = df
+    self.qf = qf
+    self.dqf = dqf
+    self.n_inference_steps = n_inference_steps
+    self.layers = []
+    self.qlayers = []
+    for i in range(len(self.layer_sizes)-1):
+      self.layers.append(PredictiveCodingLayer(self.layer_sizes[i], self.layer_sizes[i+1], self.batch_size, self.f,self.df,self.learning_rate))
+    #initialize amortised networks
+    for i in range(len(self.layer_sizes)-1):
+      self.qlayers.append(AmortisationLayer(self.layer_sizes[i+1], self.layer_sizes[i], self.amortised_learning_rate,self.batch_size, self.qf,self.dqf))
+    self.predictions = [[]for i in range(len(self.layer_sizes))]
+    self.prediction_errors = [[] for i in range(len(self.layer_sizes))]
+    self.amortised_predictions = [[] for i in range(len(self.layer_sizes))]
+    self.amortised_prediction_errors = [[] for i in range(len(self.layer_sizes))]
+    self.L = len(self.layers)
+
+  def _reset_mus(self):
+    for layer in self.layers:
+        layer.mu = np.random.normal(0,1,[layer.output_size,layer.batch_size])
+
+  def infer(self, img_batch,label_batch):
+    self._reset_mus()
+    prediction_errors = [[] for i in range(self.L)]
+    self.layers[-1].mu = deepcopy(label_batch)
+    self.amortised_predictions[0] = deepcopy(img_batch)
+    for l in range(self.L):
+      self.amortised_predictions[l+1] = self.qlayers[l].predict(self.amortised_predictions[l])
+      self.layers[l].mu = self.amortised_predictions[l+1]
+    for i in reversed(range(self.L)):
+      self.predictions[i] = self.layers[i].predict()
     for n in range(self.n_inference_steps):
-      for i,layer in enumerate(self.layers):
-        pe,pred = layer.step(self.prediction_errors[i+1],self.predictions[i])
-        self.predictions[i+1] = pred
-        self.prediction_errors[i] = pe
-    pred_labels = self.layers[0].mu
-    pred_imgs = self.predictions[-1]
+      self.prediction_errors[0] = img_batch - self.predictions[0]
+      self.predictions[-1] = np.zeros_like(self.layers[-1].mu)
+      for l in range(self.L):
+        self.prediction_errors[l+1] = self.layers[l].mu - self.predictions[l+1]
+        if l !=self.L-1:
+          self.layers[l]._update_mu(self.prediction_errors[l+1],self.prediction_errors[l])
+        else:
+          self.layers[l]._update_mu(np.zeros_like(self.layers[l].mu), self.prediction_errors[l])
+        self.predictions[l] = self.layers[l].predict()
+      self.layers[-1].mu = deepcopy(label_batch)
+      self.predictions[-1] = self.layers[-1].mu
+    for l in range(self.L):
+      self.layers[l].update_weights(self.prediction_errors[l])
+      self.amortised_prediction_errors[l] = self.layers[l].mu - self.amortised_predictions[l+1]
+      if l == 0:
+        self.qlayers[l].update_weights(self.amortised_prediction_errors[l], self.amortised_predictions[0])
+      else:
+        self.qlayers[l].update_weights(self.amortised_prediction_errors[l],self.layers[l-1].mu)
+
+    return self.prediction_errors, self.predictions,self.amortised_predictions,self.amortised_prediction_errors
+
+  def test(self, img_batch, label_batch):
+    self._reset_mus()
+    prediction_errors = [[] for i in range(self.L)]
+    self.amortised_predictions[0] = deepcopy(img_batch)
+    for l in range(self.L):
+      self.amortised_predictions[l+1] = self.qlayers[l].predict(self.amortised_predictions[l])
+      self.layers[l].mu = self.amortised_predictions[l+1]
+    for i in reversed(range(self.L)):
+      self.predictions[i] = self.layers[i].predict()
+    for n in range(self.n_inference_steps * 10):
+      self.prediction_errors[0] = img_batch - self.predictions[0]
+      self.predictions[-1] = np.zeros_like(self.layers[-1].mu)
+      for l in range(self.L):
+        self.prediction_errors[l+1] = self.layers[l].mu - self.predictions[l+1]
+        if l !=self.L-1:
+          self.layers[l]._update_mu(self.prediction_errors[l+1],self.prediction_errors[l])
+        else:
+          self.layers[l]._update_mu(np.zeros_like(self.layers[l].mu), self.prediction_errors[l])
+        self.predictions[l] = self.layers[l].predict()
+
+    pred_labels = self.layers[-1].mu
+    pred_imgs = self.predictions[0]
     return pred_imgs, pred_labels
 
   def amortised_test(self, img_batch):
-    self.amortised_predictions[-1] = img_batch
-    for i in reversed(range(len(self.amortised_layers))):
-      self.amortised_predictions[i] = self.amortised_layers[i].predict(self.amortised_predictions[i+1])
-    q_labels = self.amortised_predictions[0]
-    return q_labels
+    self.amortised_predictions[0] = deepcopy(img_batch)
+    for l in range(self.L):
+      self.amortised_predictions[l+1] = self.qlayers[l].predict(self.amortised_predictions[l])
+    pred_qlabels = self.amortised_predictions[-1]
+    return pred_qlabels
+
 
   def accuracy(self,pred_labels, true_labels):
     correct = 0
@@ -262,3 +284,22 @@ class AmortisedPredictiveCodingNetwork(object):
       plt.plot(pred_labels[:,b])
       plt.show()
       print(true_labels[:,b])
+
+  def train(self, imglist, labellist, n_epochs):
+    prediction_errors = []
+    for n in range(n_epochs):
+      print("Epoch ", n)
+      batch_pes = []
+      for (img_batch,label_batch) in zip(imglist, labellist):
+        pes, preds,qpreds, qpes = self.infer(img_batch,label_batch)
+
+      if n % 10 == 0:
+        tot_acc = 0
+        q_acc = 0
+        for (img_batch, label_batch) in zip(imglist, labellist):
+          pred_imgs, pred_labels = self.test(img_batch,label_batch)
+          tot_acc += self.accuracy(pred_labels, label_batch)
+          pred_qlabels = self.amortised_test(img_batch)
+          q_acc += self.accuracy(pred_qlabels, label_batch)
+        print("Accuracy: ", tot_acc/len(imglist))
+        print("Amortised Accuracy: ", q_acc / len(imglist))
