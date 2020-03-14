@@ -37,3 +37,12 @@ def onehot(x):
     z = np.zeros([10,])
     z[x] = 1
     return z
+
+def accuracy(pred_labels, true_labels):
+    print("IN accuracy", pred_labels, true_labels)
+    correct = 0
+    batch_size = pred_labels.shape[1]
+    for b in range(batch_size):
+      if np.argmax(pred_labels[:,b]) == np.argmax(true_labels[:,b]):
+        correct +=1
+    return correct / batch_size
