@@ -1,2 +1,2 @@
 # AmortisedPredictiveCoding
-Experiments with amortisation in predictive coding networks
+Experiments with amortisation in predictive coding networks. Currently repo contains both amortised and non-amortised predictive coding networks. Currently only amortisation setting the initial condition is implemented. Should have a fairly straightforward NN-like API with predictive coding layers and networks. Define a network and then call train(). Running main.py should replicate the results in the email.
