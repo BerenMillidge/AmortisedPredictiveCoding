@@ -4,9 +4,10 @@ import torch
 import torchvision
 from functions import *
 from models import *
+import sys
 
-def run_amortised():
-    batch_size = 50
+def run_amortised(save_name):
+    batch_size = 10
     num_batches = 10
     num_test_batches = 20
     n_inference_steps_train = 100
@@ -15,12 +16,12 @@ def run_amortised():
     amortised_learning_rate = 0.001
     layer_sizes = [784, 300, 100, 10]
     n_layers = len(layer_sizes)
-    n_epochs = 51
+    n_epochs = 11
     inference_thresh = 0.5
 
     train_set = torchvision.datasets.MNIST("MNIST_train", download=True, train=True)
     test_set = torchvision.datasets.MNIST("MNIST_test", download=True, train=False)
-    num_batches = len(train_set)// batch_size
+    #num_batches = len(train_set)// batch_size
     print("Num Batches",num_batches)
     img_list = [
         np.array(
@@ -61,7 +62,8 @@ def run_amortised():
         dqf=tanhderiv,
         inference_threshold=inference_thresh
     )
-    pred_net.train(img_list, label_list,test_img_list, test_label_list, n_epochs)
+    pred_net.train(img_list, label_list,test_img_list, test_label_list, n_epochs,save_name)
 
 if __name__ == "__main__":
-    run_amortised()
+    sname = str(sys.argv[1])
+    run_amortised(sname)

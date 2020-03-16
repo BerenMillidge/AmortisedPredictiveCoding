@@ -267,7 +267,7 @@ class AmortisedPredictiveCodingNetwork(object):
       return correct / batch_size
 
 
-  def train(self, imglist, labellist,test_img_list, test_label_list, n_epochs):
+  def train(self, imglist, labellist,test_img_list, test_label_list, n_epochs,save_name):
     prediction_errors = []
     amortised_prediction_errors = []
     variational_accs = []
@@ -321,24 +321,28 @@ class AmortisedPredictiveCodingNetwork(object):
     amortised_prediction_errors = torch.mean(torch.from_numpy(amortised_prediction_errors),dim=1).numpy()
     #print(prediction_errors.shape)
     #print(amortised_prediction_errors.shape)
-    for i in range(self.L):
-        plt.title("Average Variational Prediction Errors Layer " + str(i))
-        plt.xlabel("Epoch")
-        plt.ylabel("Prediction Errors")
-        plt.plot(prediction_errors[:,i])
-        plt.show()
-        plt.title("Average Amortised Prediction Errors Layer " + str(i))
-        plt.xlabel("Epoch")
-        plt.ylabel("Prediction Errors")
-        plt.plot(amortised_prediction_errors[:,i])
-        plt.show()
+    #for i in range(self.L):
+    #    plt.title("Average Variational Prediction Errors Layer " + str(i))
+    #    plt.xlabel("Epoch")
+    #    plt.ylabel("Prediction Errors")
+    #    plt.plot(prediction_errors[:,i])
+    #    plt.show()
+    #    plt.title("Average Amortised Prediction Errors Layer " + str(i))
+    #    plt.xlabel("Epoch")
+    #    plt.ylabel("Prediction Errors")
+    #    plt.plot(amortised_prediction_errors[:,i])
+    #    plt.show()
     #pred_imgs, pred_labels = self.test(imglist[0],labellist[0])
     #pred_qlabels = self.amortised_test(imglist[0])
     #self.plot_batch_results(pred_labels, pred_qlabels, labellist[0])
-    np.save("variational_acc.npy", np.array(variational_accs))
-    np.save("amortised_acc.npy", np.array(amortised_accs))
-    np.save("test_variational_acc.npy", np.array(test_variational_accs))
-    np.save("test_amortised_acc.npy", np.array(test_amortised_accs))
+    np.save(save_name + "_variational_acc.npy", np.array(variational_accs))
+    np.save(save_name + "_amortised_acc.npy", np.array(amortised_accs))
+    np.save(save_name + "_test_variational_acc.npy", np.array(test_variational_accs))
+    np.save(save_name+ "_test_amortised_acc.npy", np.array(test_amortised_accs))
+    #save the weights:
+    for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
+        np.save(save_name + "_layer_"+str(i)+"_weights.npy",layer.weights)
+        np.save(save_name + "_layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
     print("Accuracy plots")
     plt.title("Variational Accuracy")
     plt.xlabel("Epoch number")
