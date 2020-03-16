@@ -46,3 +46,35 @@ def accuracy(pred_labels, true_labels):
       if np.argmax(pred_labels[:,b]) == np.argmax(true_labels[:,b]):
         correct +=1
     return correct / batch_size
+
+def same_sign(base, adjust):
+  w,h = base.shape #currently only 2d arrays it's just a hacky prototype these things don't matter
+  for i in range(w):
+    for j in range(h):
+      el = base[i,j]
+      if el >0:
+        adjust[i,j] = abs(adjust[i,j])
+      else:
+        adjust[i,j] = -abs(adjust[i,j])
+  return adjust
+
+def same_sign_binary(base, adjust):
+  w,h = base.shape #currently only 2d arrays it's just a hacky prototype these things don't matter
+  for i in range(w):
+    for j in range(h):
+      el = base[i,j]
+      if el >0:
+        adjust[i,j] = 1
+      else:
+        adjust[i,j] = -1
+  return adjust
+
+def dropout_mask(base_arr, dropout_prob):
+  w,h = base_arr.shape
+  drop = np.ones_like(base_arr)
+  for i in range(w):
+    for j in range(h):
+      rand = np.random.uniform()
+      if rand <= dropout_prob:
+        drop[i,j] = 0
+  return drop
