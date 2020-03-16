@@ -7,7 +7,7 @@ from models import *
 import sys
 
 def run_amortised(save_name):
-    batch_size = 10
+    batch_size = 50
     num_batches = 10
     num_test_batches = 20
     n_inference_steps_train = 100
@@ -16,12 +16,12 @@ def run_amortised(save_name):
     amortised_learning_rate = 0.001
     layer_sizes = [784, 300, 100, 10]
     n_layers = len(layer_sizes)
-    n_epochs = 11
+    n_epochs = 101
     inference_thresh = 0.5
 
     train_set = torchvision.datasets.MNIST("MNIST_train", download=True, train=True)
     test_set = torchvision.datasets.MNIST("MNIST_test", download=True, train=False)
-    #num_batches = len(train_set)// batch_size
+    num_batches = len(train_set)// batch_size
     print("Num Batches",num_batches)
     img_list = [
         np.array(
