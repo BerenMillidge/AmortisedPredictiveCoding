@@ -141,16 +141,18 @@ class AmortisationLayer(object):
 
 
 class AmortisedPredictiveCodingNetwork(object):
-  def __init__(self, layer_sizes,batch_size,learning_rate,amortised_learning_rate, f,df,qf,dqf,n_inference_steps):
+  def __init__(self, layer_sizes,batch_size,learning_rate,amortised_learning_rate,n_inference_steps_train,n_inference_steps_test, f,df,qf,dqf,inference_threshold=0.1):
     self.layer_sizes = layer_sizes
     self.batch_size = batch_size
     self.learning_rate = learning_rate
     self.amortised_learning_rate = amortised_learning_rate
+    self.n_inference_steps_train = n_inference_steps_train
+    self.n_inference_steps_test = n_inference_steps_test
     self.f = f
     self.df = df
     self.qf = qf
     self.dqf = dqf
-    self.n_inference_steps = n_inference_steps
+    self.inference_threshold = inference_threshold
     self.layers = []
     self.q_layers = []
     for i in range(len(self.layer_sizes)-1):
@@ -181,7 +183,7 @@ class AmortisedPredictiveCodingNetwork(object):
 
   def forward_pass(self, img_batch, label_batch, test=False):
     # reset model
-    n_inference_steps = self.n_inference_steps * 10 if test else self.n_inference_steps
+    n_inference_steps = self.n_inference_steps_test if test else self.n_inference_steps_train
     self.reset_mus()
     prediction_errors = [[] for i in range(self.n_layers)]
 
@@ -213,6 +215,11 @@ class AmortisedPredictiveCodingNetwork(object):
         if not test:
             self.layers[-1].mu = deepcopy(label_batch)
             self.predictions[-1] = deepcopy(self.layers[-1].mu)
+
+
+        F = np.sum(np.array([np.mean(np.square(pe)) for pe in self.prediction_errors]))
+        if F <= self.inference_threshold:
+            break
 
     pred_imgs = deepcopy(self.predictions[0])
     pred_labels = deepcopy(self.layers[-1].mu)
@@ -260,11 +267,13 @@ class AmortisedPredictiveCodingNetwork(object):
       return correct / batch_size
 
 
-  def train(self, imglist, labellist, n_epochs):
+  def train(self, imglist, labellist,test_img_list, test_label_list, n_epochs):
     prediction_errors = []
     amortised_prediction_errors = []
     variational_accs = []
     amortised_accs = []
+    test_variational_accs = []
+    test_amortised_accs = []
     for n in range(n_epochs):
         print("Epoch ", n)
         batch_pes = []
@@ -289,17 +298,29 @@ class AmortisedPredictiveCodingNetwork(object):
             print("Amortised Accuracy: ", q_acc / len(imglist))
             variational_accs.append(tot_acc/len(imglist))
             amortised_accs.append(q_acc / len(imglist))
+            print("TEST ACCURACIES")
+            tot_acc = 0
+            q_acc = 0
+            for (test_img_batch, test_label_batch) in zip(test_img_list, test_label_list):
+                pred_imgs, pred_labels = self.test(test_img_batch, test_label_batch)
+                tot_acc += accuracy(pred_labels, test_label_batch)
+                pred_qlabels = self.amortised_test(test_img_batch)
+                q_acc += accuracy(pred_qlabels, test_label_batch)
+            print(f"Test Variational Accuracy: {tot_acc/len(test_img_list)}")
+            print(f"Test Amortised Accuracy: {q_acc / len(test_img_list)}")
+            test_variational_accs.append(tot_acc/len(test_img_list))
+            test_amortised_accs.append(q_acc / len(test_img_list))
 
 
     prediction_errors = np.array(prediction_errors)
     amortised_prediction_errors = np.array(amortised_prediction_errors)
-    print("Prediction error shapes")
-    print(prediction_errors.shape)
-    print(amortised_prediction_errors.shape)
+    #print("Prediction error shapes")
+    #print(prediction_errors.shape)
+    #print(amortised_prediction_errors.shape)
     prediction_errors = torch.mean(torch.from_numpy(prediction_errors),dim=1).numpy()
     amortised_prediction_errors = torch.mean(torch.from_numpy(amortised_prediction_errors),dim=1).numpy()
-    print(prediction_errors.shape)
-    print(amortised_prediction_errors.shape)
+    #print(prediction_errors.shape)
+    #print(amortised_prediction_errors.shape)
     for i in range(self.L):
         plt.title("Average Variational Prediction Errors Layer " + str(i))
         plt.xlabel("Epoch")
@@ -314,6 +335,10 @@ class AmortisedPredictiveCodingNetwork(object):
     #pred_imgs, pred_labels = self.test(imglist[0],labellist[0])
     #pred_qlabels = self.amortised_test(imglist[0])
     #self.plot_batch_results(pred_labels, pred_qlabels, labellist[0])
+    np.save("variational_acc.npy", np.array(variational_accs))
+    np.save("amortised_acc.npy", np.array(amortised_accs))
+    np.save("test_variational_acc.npy", np.array(test_variational_accs))
+    np.save("test_amortised_acc.npy", np.array(test_amortised_accs))
     print("Accuracy plots")
     plt.title("Variational Accuracy")
     plt.xlabel("Epoch number")
@@ -324,4 +349,15 @@ class AmortisedPredictiveCodingNetwork(object):
     plt.xlabel("Epoch number")
     plt.ylabel("Proportion correct")
     plt.plot(amortised_accs)
+    plt.show()
+    print("Test Accuracy plots")
+    plt.title("Variational Accuracy")
+    plt.xlabel("Epoch number")
+    plt.ylabel("Proportion correct")
+    plt.plot(test_variational_accs)
+    plt.show()
+    plt.title("Amortised Accuracy")
+    plt.xlabel("Epoch number")
+    plt.ylabel("Proportion correct")
+    plt.plot(test_amortised_accs)
     plt.show()
