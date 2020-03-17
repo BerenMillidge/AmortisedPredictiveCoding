@@ -310,6 +310,14 @@ class AmortisedPredictiveCodingNetwork(object):
             print(f"Test Amortised Accuracy: {q_acc / len(test_img_list)}")
             test_variational_accs.append(tot_acc/len(test_img_list))
             test_amortised_accs.append(q_acc / len(test_img_list))
+            np.save(save_name + "_variational_acc.npy", np.array(deepcopy(variational_accs)))
+            np.save(save_name + "_amortised_acc.npy", np.array(deepcopy(amortised_accs)))
+            np.save(save_name + "_test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
+            np.save(save_name+ "_test_amortised_acc.npy", np.array(deepcopy(test_amortised_accs)))
+            #save the weights:
+            for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
+                np.save(save_name + "_layer_"+str(i)+"_weights.npy",layer.weights)
+                np.save(save_name + "_layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
 
 
     prediction_errors = np.array(prediction_errors)
