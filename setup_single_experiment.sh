@@ -50,20 +50,11 @@ CONDA_NAME=env
 conda activate ${CONDA_NAME}
 #mkdir -p ${log_path}
 
-#echo "Running experiment command"
-#pip install git+https://github.com/Bmillidgework/exploration-baselines
 experiment_text_file=$1
 COMMAND="`sed \"${SLURM_ARRAY_TASK_ID}q;d\" ${experiment_text_file}`"
-#python main.py --env_name "SparseBipedalWalker" --logdir ${log_path} --action_noise "0.1" --plan_horizon "40" --action_repeat "2" --ensemble_size "15" --use_exploration "True" --use_reward "True" --expl_scale "0.1" --n_episodes "10"
 echo "Running provided command: ${COMMAND}"
 eval "${COMMAND}"
 echo "Command ran successfully!"
-#echo "Experiment Finished. Moving data back to DFS"
-#echo "log path: ${log_path}"
-#save_path=/home/${USER}/fe_mbrl/bipedal_walker_initial_tests/${SLURM_ARRAY_TASK_ID}
-#mkdir -p ${save_path}
-#echo "save_path: ${save_path}"
-#rsync --archive --update --compress --progress ${log_path}/ ${save_path}
 
 echo ""
 echo "============"
