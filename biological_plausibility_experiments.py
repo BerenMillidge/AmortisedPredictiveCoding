@@ -374,17 +374,17 @@ class AmortisedPredictiveCodingNetwork(object):
             print(f"Test Amortised Accuracy: {q_acc / len(test_img_list)}")
             test_variational_accs.append(tot_acc/len(test_img_list))
             test_amortised_accs.append(q_acc / len(test_img_list))
-            np.save(self.log_path + "_variational_acc.npy", np.array(deepcopy(variational_accs)))
-            np.save(self.log_path + "_amortised_acc.npy", np.array(deepcopy(amortised_accs)))
-            np.save(self.log_path + "_test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
-            np.save(self.log_path+ "_test_amortised_acc.npy", np.array(deepcopy(test_amortised_accs)))
+            np.save(self.log_path + "/variational_acc.npy", np.array(deepcopy(variational_accs)))
+            np.save(self.log_path + "/amortised_acc.npy", np.array(deepcopy(amortised_accs)))
+            np.save(self.log_path + "/test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
+            np.save(self.log_path+ "/test_amortised_acc.npy", np.array(deepcopy(test_amortised_accs)))
             #save the weights:
             for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
-                np.save(self.log_path + "_layer_"+str(i)+"_weights.npy",layer.weights)
-                np.save(self.log_path + "_layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
+                np.save(self.log_path + "/layer_"+str(i)+"_weights.npy",layer.weights)
+                np.save(self.log_path + "/layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
 
             #SAVE the results to the edinburgh computer from scratch space to main space
-            subprocess.call(['rsync','--archive','--update','--compress','--progress',str(self.log_path),str(self.save_path)])
+            subprocess.call(['rsync','--archive','--update','--compress','--progress',str(self.log_path) +"/",str(self.save_path)])
             print("Rsynced files from: " + str(self.log_path) + "/ " + " to" + str(self.save_path))
             now = datetime.now()
             current_time = str(now.strftime("%H:%M:%S"))
@@ -396,22 +396,22 @@ class AmortisedPredictiveCodingNetwork(object):
     amortised_prediction_errors = np.array(amortised_prediction_errors)
     prediction_errors = torch.mean(torch.from_numpy(prediction_errors),dim=1).numpy()
     amortised_prediction_errors = torch.mean(torch.from_numpy(amortised_prediction_errors),dim=1).numpy()
-    np.save(self.log_path + "_variational_acc.npy", np.array(variational_accs))
-    np.save(self.log_path + "_amortised_acc.npy", np.array(amortised_accs))
-    np.save(self.log_path + "_test_variational_acc.npy", np.array(test_variational_accs))
-    np.save(self.log_path+ "_test_amortised_acc.npy", np.array(test_amortised_accs))
+    np.save(self.log_path + "/variational_acc.npy", np.array(variational_accs))
+    np.save(self.log_path + "/amortised_acc.npy", np.array(amortised_accs))
+    np.save(self.log_path + "/test_variational_acc.npy", np.array(test_variational_accs))
+    np.save(self.log_path+ "/test_amortised_acc.npy", np.array(test_amortised_accs))
     #save the weights:
     for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
-        np.save(self.log_path + "_layer_"+str(i)+"_weights.npy",layer.weights)
-        np.save(self.log_path + "_layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
+        np.save(self.log_path + "/layer_"+str(i)+"_weights.npy",layer.weights)
+        np.save(self.log_path + "/layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
 
     #SAVE the results to the edinburgh computer from scratch space to main space
-    subprocess.call(['rsync','--archive','--update','--compress','--progress',str(self.log_path),str(self.save_path)])
+    subprocess.call(['rsync','--archive','--update','--compress','--progress',str(self.log_path)+ "/",str(self.save_path)])
     print("Rsynced files from: " + str(self.log_path) + "/ " + " to" + str(self.save_path))
     now = datetime.now()
     current_time = str(now.strftime("%H:%M:%S"))
 
-    subprocess.call(['echo', f" TIME OF SAVE: {current_time}"])
+    subprocess.call(['echo', f" TIME OF SAVE: {current_time} Synced from {self.log_path} to {self.save_path}"])
 
 
 def run_amortised(args):
