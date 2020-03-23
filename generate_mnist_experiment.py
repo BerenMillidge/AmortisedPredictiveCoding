@@ -12,4 +12,5 @@ for s in range(seeds):
     final_call = base_call + " " + str(lpath) + " " + str(spath)
     print(final_call, file=output_file)
 
+output_file.close()
 print("Experiment File Generated")
