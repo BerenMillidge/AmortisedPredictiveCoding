@@ -384,7 +384,7 @@ class AmortisedPredictiveCodingNetwork(object):
                 np.save(self.log_path + "_layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
 
             #SAVE the results to the edinburgh computer from scratch space to main space
-            subprocess.call(['rsync','--archive','--update','--compress','--progress',str(self.log_path) + "/",str(self.save_path)])
+            subprocess.call(['rsync','--archive','--update','--compress','--progress',str(self.log_path),str(self.save_path)])
             print("Rsynced files from: " + str(self.log_path) + "/ " + " to" + str(self.save_path))
             now = datetime.now()
             current_time = str(now.strftime("%H:%M:%S"))
@@ -406,7 +406,7 @@ class AmortisedPredictiveCodingNetwork(object):
         np.save(self.log_path + "_layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
 
     #SAVE the results to the edinburgh computer from scratch space to main space
-    subprocess.call(['rsync','--archive','--update','--compress','--progress',str(self.log_path) + "/",str(self.save_path)])
+    subprocess.call(['rsync','--archive','--update','--compress','--progress',str(self.log_path),str(self.save_path)])
     print("Rsynced files from: " + str(self.log_path) + "/ " + " to" + str(self.save_path))
     now = datetime.now()
     current_time = str(now.strftime("%H:%M:%S"))
