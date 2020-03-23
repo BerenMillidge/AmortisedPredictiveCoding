@@ -467,4 +467,10 @@ if __name__ == "__main__":
         args.dropout_prob = None
     if args.sign_concordance_prob == -1:
         args.sign_concordance_prob = None
+
+    #ensure that log and save paths have correct points
+    if args.save_path != "":
+        subprocess.call(["mkdir","-p",str(args.save_path)])
+    if args.log_path != "":
+        subprocess.call(["mkdir","-p",str(args.log_path)])
     run_amortised(args)
