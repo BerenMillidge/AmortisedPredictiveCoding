@@ -326,7 +326,7 @@ class AmortisedPredictiveCodingNetwork(object):
 
             #SAVE the results to the edinburgh computer from scratch space to main space
             subprocess.call(['rsync','--archive','--update','--compress','--progress',str(log_path) + "/",str(save_path)])
-            tools.log("Rsynced files from: " + str(log_path) + "/ " + " to" + str(save_path))
+            print("Rsynced files from: " + str(log_path) + "/ " + " to" + str(save_path))
             now = datetime.now()
             current_time = str(now.strftime("%H:%M:%S"))
 
@@ -348,7 +348,7 @@ class AmortisedPredictiveCodingNetwork(object):
 
     #SAVE the results to the edinburgh computer from scratch space to main space
     subprocess.call(['rsync','--archive','--update','--compress','--progress',str(log_path) + "/",str(save_path)])
-    tools.log("Rsynced files from: " + str(log_path) + "/ " + " to" + str(save_path))
+    print("Rsynced files from: " + str(log_path) + "/ " + " to" + str(save_path))
     now = datetime.now()
     current_time = str(now.strftime("%H:%M:%S"))
 
