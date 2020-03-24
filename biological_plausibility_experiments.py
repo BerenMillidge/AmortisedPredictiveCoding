@@ -27,13 +27,18 @@ class PredictiveCodingLayer(object):
     self.sign_concordance_prob = args.sign_concordance_prob
     self.use_backward_nonlinearity = args.use_backward_nonlinearity
     self.weights = np.random.normal(0,0.1,[input_size, output_size])
-    if not self.use_backward_weights:
+    print("beginning weight initialization")
+    if self.use_backward_weights:
+        print("using COPIED backward weights")
         self.backward_weights = deepcopy(self.weights.T)
     else:
         if self.sign_concordance_prob is not None:
+            print("SIGN CONCORDANCE WEIGHTS")
             self.backward_weights = sign_concordance(self.weights.T, np.random.normal(0,0.1,[input_size,output_size]).T,self.sign_concordance_prob)
         else:
+            print("initializing random weights")
             self.backward_weights = np.random.normal(0,0.1,[input_size, output_size]).T
+            self.backward_weights = np.zeros_like(self.backward_weights)
         # do dropout if required
         if self.dropout_prob is not None:
             self.weight_mask = dropout_mask(self.weights, self.dropout_prob)
@@ -45,24 +50,25 @@ class PredictiveCodingLayer(object):
 
   def update_mu(self, pe, pe_below):
     if self.use_backward_nonlinearity:
-        self.mu+= self.learning_rate * (-pe + (np.dot(self.weights.T, pe_below )))
+        self.mu+= self.learning_rate * (-pe + (np.dot(self.backward_weights, pe_below*self.fn_deriv(np.dot(self.weights, self.mu)))))
     else:
-        self.mu+= self.learning_rate * (-pe + (np.dot(self.weights.T, pe_below)))
+        self.mu+= self.learning_rate * (-pe + (np.dot(self.backward_weights, pe_below)))
   def step(self,pe_below,pred,use_top_down_pe=True):
     if use_top_down_pe:
       pe = self.mu - pred
     else:
       pe = np.zeros_like(self.mu)
     if self.use_backward_nonlinearity:
-        self.mu+= self.learning_rate * (-pe + (np.dot(self.weights.T, pe_below )))
+        self.mu+= self.learning_rate * (-pe + (np.dot(self.backward_weights, pe_below *self.fn_deriv(np.dot(self.weights, self.mu)))))
     else:
-        self.mu+= self.learning_rate * (-pe + (np.dot(self.weights.T, pe_below)))
+        self.mu+= self.learning_rate * (-pe + (np.dot(self.backward_weights, pe_below)))
     return pe, self.predict()
 
   def predict(self):
     return self.fn(np.dot(self.weights, self.mu))
 
   def update_weights(self,pe_below):
+    #print("updating forward weights")
     if self.use_backward_nonlinearity:
         self.weights += self.learning_rate * (np.dot(pe_below * self.fn_deriv(np.dot(self.weights, self.mu)), self.mu.T))
     else:
@@ -73,6 +79,7 @@ class PredictiveCodingLayer(object):
 
 
   def update_backward_weights(self, pe_below):
+    print("UPDATING BACKWARD WEIGHTS")
     if self.use_backward_nonlinearity:
         self.backward_weights += self.learning_rate * np.dot(self.mu,(pe_below * self.fn_deriv(np.dot(self.weights, self.mu))).T)
     else:
@@ -460,7 +467,7 @@ if __name__ == "__main__":
     parser.add_argument("--amortised_learning_rate",type=float, default=0.0005)
     parser.add_argument("--n_inference_steps_train",type=int, default=100)
     parser.add_argument("--n_inference_steps_test",type=int, default=1000)
-    parser.add_argument("--inference_threshold",type=float, default=0.5)
+    parser.add_argument("--inference_threshold",type=float, default=0.1)
 
     args =parser.parse_args()
     if args.dropout_prob == -1:
