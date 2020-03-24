@@ -291,7 +291,7 @@ class AmortisedPredictiveCodingNetwork(object):
         prediction_errors.append(np.array(batch_pes))
         amortised_prediction_errors.append(np.array(batch_qpes))
 
-        if n % 10 == 0:
+        if n % 1 == 0:
             tot_acc = 0
             q_acc = 0
             for (img_batch, label_batch) in zip(imglist, labellist):
@@ -315,14 +315,14 @@ class AmortisedPredictiveCodingNetwork(object):
             print(f"Test Amortised Accuracy: {q_acc / len(test_img_list)}")
             test_variational_accs.append(tot_acc/len(test_img_list))
             test_amortised_accs.append(q_acc / len(test_img_list))
-            np.save(log_path + "_variational_acc.npy", np.array(deepcopy(variational_accs)))
-            np.save(log_path + "_amortised_acc.npy", np.array(deepcopy(amortised_accs)))
-            np.save(log_path + "_test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
-            np.save(log_path+ "_test_amortised_acc.npy", np.array(deepcopy(test_amortised_accs)))
+            np.save(log_path + "/variational_acc.npy", np.array(deepcopy(variational_accs)))
+            np.save(log_path + "/amortised_acc.npy", np.array(deepcopy(amortised_accs)))
+            np.save(log_path + "/test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
+            np.save(log_path+ "/test_amortised_acc.npy", np.array(deepcopy(test_amortised_accs)))
             #save the weights:
             for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
-                np.save(log_path + "_layer_"+str(i)+"_weights.npy",layer.weights)
-                np.save(log_path + "_layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
+                np.save(log_path + "/layer_"+str(i)+"_weights.npy",layer.weights)
+                np.save(log_path + "/layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
 
             #SAVE the results to the edinburgh computer from scratch space to main space
             subprocess.call(['rsync','--archive','--update','--compress','--progress',str(log_path) + "/",str(save_path)])
@@ -337,14 +337,14 @@ class AmortisedPredictiveCodingNetwork(object):
     amortised_prediction_errors = np.array(amortised_prediction_errors)
     prediction_errors = torch.mean(torch.from_numpy(prediction_errors),dim=1).numpy()
     amortised_prediction_errors = torch.mean(torch.from_numpy(amortised_prediction_errors),dim=1).numpy()
-    np.save(log_path + "_variational_acc.npy", np.array(variational_accs))
-    np.save(log_path + "_amortised_acc.npy", np.array(amortised_accs))
-    np.save(log_path + "_test_variational_acc.npy", np.array(test_variational_accs))
-    np.save(log_path+ "_test_amortised_acc.npy", np.array(test_amortised_accs))
+    np.save(log_path + "/variational_acc.npy", np.array(variational_accs))
+    np.save(log_path + "/amortised_acc.npy", np.array(amortised_accs))
+    np.save(log_path + "/test_variational_acc.npy", np.array(test_variational_accs))
+    np.save(log_path+ "/test_amortised_acc.npy", np.array(test_amortised_accs))
     #save the weights:
     for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
-        np.save(log_path + "_layer_"+str(i)+"_weights.npy",layer.weights)
-        np.save(log_path + "_layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
+        np.save(log_path + "/layer_"+str(i)+"_weights.npy",layer.weights)
+        np.save(log_path + "/layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
 
     #SAVE the results to the edinburgh computer from scratch space to main space
     subprocess.call(['rsync','--archive','--update','--compress','--progress',str(log_path) + "/",str(save_path)])
@@ -361,7 +361,7 @@ def run_amortised(log_path, save_path):
     num_test_batches = 20
     n_inference_steps_train = 100
     n_inference_steps_test = 1000
-    learning_rate = 0.01
+    learning_rate = 0.005
     amortised_learning_rate = 0.001
     layer_sizes = [784, 300, 100, 10]
     n_layers = len(layer_sizes)
@@ -416,4 +416,8 @@ def run_amortised(log_path, save_path):
 if __name__ == "__main__":
     log_path = str(sys.argv[1])
     save_path = str(sys.argv[2])
+    if save_path != "":
+        subprocess.call(["mkdir","-p",str(save_path)])
+    if log_path != "":
+        subprocess.call(["mkdir","-p",str(log_path)])
     run_amortised(log_path, save_path)
