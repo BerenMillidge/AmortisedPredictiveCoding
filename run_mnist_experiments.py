@@ -352,7 +352,7 @@ class AmortisedPredictiveCodingNetwork(object):
     now = datetime.now()
     current_time = str(now.strftime("%H:%M:%S"))
 
-    subprocess.call(['echo', f" TIME OF SAVE: {current_time}"])
+    subprocess.call(['echo', f" TIME OF SAVE: {current_time} Synced from {log_path} to {save_path}"])
 
 
 def run_amortised(log_path, save_path):
