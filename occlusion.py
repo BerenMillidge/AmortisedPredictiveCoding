@@ -184,7 +184,7 @@ class AmortisedPredictiveCodingNetwork(object):
 
 
 
-  def forward_pass(self, img_batch, label_batch, test=False,save_accuracy_steps = True):
+  def forward_pass(self, img_batch, label_batch, test=False,save_accuracy_steps = False):
     # reset model
     n_inference_steps = self.n_inference_steps_test if test else self.n_inference_steps_train
     self.reset_mus()
@@ -392,7 +392,7 @@ class AmortisedPredictiveCodingNetwork(object):
 def run_amortised(save_name):
     batch_size = 10
     num_batches = 10
-    num_test_batches = 20
+    num_test_batches = 10
     n_inference_steps_train = 100
     n_inference_steps_test = 1000
     learning_rate = 0.01
@@ -400,7 +400,7 @@ def run_amortised(save_name):
     layer_sizes = [784, 300, 100, 10]
     n_layers = len(layer_sizes)
     n_epochs = 101
-    inference_thresh = 0.2
+    inference_thresh = 0.5
 
     train_set = torchvision.datasets.MNIST("MNIST_train", download=True, train=True)
     test_set = torchvision.datasets.MNIST("MNIST_test", download=True, train=False)
