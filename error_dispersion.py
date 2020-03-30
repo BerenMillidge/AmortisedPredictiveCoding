@@ -217,7 +217,8 @@ class AmortisedPredictiveCodingNetwork(object):
         for i in range(self.L):
             if self.error_dispersion:
                 #print(self.layers[i].mu.T.shape, self.predictions[i+1].shape, self.error_weights[i].shape)
-                self.prediction_errors[i+1] = self.layers[i].mu - np.dot(self.error_weights[i],self.predictions[i+1])
+                #self.prediction_errors[i+1] = self.layers[i].mu - np.dot(self.error_weights[i],self.predictions[i+1])
+                self.prediction_errors[i+1] = np.dot(self.error_weights[i],self.layers[i].mu) - self.predictions[i+1]
                 #print("Dispersed PEs: ",self.prediction_errors[i+1])
                 #print("True pes: ", self.layers[i].mu - self.predictions[i+1])
             else:
@@ -249,7 +250,9 @@ class AmortisedPredictiveCodingNetwork(object):
         #update the error dispersion weights should be straightforward
         if self.update_error_dispersion_weights:
             #print("updating error dispersion weights: ", self.prediction_errors[l+1].shape, self.predictions[l+1].T.shape)
-            self.error_weights[l] += self.learning_rate * np.dot(self.prediction_errors[l+1],self.predictions[l+1].T)
+            #print("L: ",np.mean(self.error_weights[l]))
+            #self.error_weights[l] += self.learning_rate * np.dot(self.prediction_errors[l+1],self.predictions[l+1].T)
+            self.error_weights[l] -= self.learning_rate * np.dot(self.prediction_errors[l+1],self.layers[l].mu.T)
         if l == 0:
             self.q_layers[l].update_weights(self.amortised_prediction_errors[l], self.amortised_predictions[0])
         else:
@@ -318,6 +321,9 @@ class AmortisedPredictiveCodingNetwork(object):
             print("Amortised Accuracy: ", q_acc / len(imglist))
             variational_accs.append(tot_acc/len(imglist))
             amortised_accs.append(q_acc / len(imglist))
+            for i in range(self.L):
+                plt.imshow(self.error_weights[i])
+                plt.show()
             print("TEST ACCURACIES")
             tot_acc = 0
             q_acc = 0
