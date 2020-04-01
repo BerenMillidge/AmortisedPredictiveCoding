@@ -327,9 +327,9 @@ class AmortisedPredictiveCodingNetwork(object):
             np.save(save_name + "_test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
             np.save(save_name+ "_test_amortised_acc.npy", np.array(deepcopy(test_amortised_accs)))
             #save the weights:
-            for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
-                np.save(save_name + "_layer_"+str(i)+"_weights.npy",layer.weights)
-                np.save(save_name + "_layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
+            #for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
+            #    np.save(save_name + "_layer_"+str(i)+"_weights.npy",layer.weights)
+            #    np.save(save_name + "_layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
 
 
     prediction_errors = np.array(prediction_errors)
@@ -382,7 +382,64 @@ class AmortisedPredictiveCodingNetwork(object):
     print(f"Occluded Variational Accuracy: {tot_acc/len(test_img_list)}")
     print(f"Occluded Amortised Accuracy: {q_acc / len(test_img_list)}")
     accuracy_list = np.mean(np.array(accuracy_list),axis=0)
+    np.save(save_name+"_accuracy_list.npy", accuracy_list)
+    plt.title("Occluded Accuracy through Variational Inference")
+    plt.xlabel("Variational Step")
+    plt.ylabel("Accuracy")
     plt.plot(accuracy_list)
+    plt.show()
+    print("Beginning occluder test")
+    num_occluders = [1,3,5,7,9]
+    n_occluder_accuracy_list = []
+    for (i,n_occ) in enumerate(num_occluders):
+        accuracy_list = []
+        for (test_img_batch, test_label_batch) in zip(test_img_list, test_label_list):
+            occluded_batch = apply_batch(test_img_batch,occlude,(5,5),n_occ,0)
+            pred_imgs, pred_labels,accuracies = self.test(occluded_batch, test_label_batch,save_accuracy_steps=True)
+            tot_acc += accuracy(pred_labels, test_label_batch)
+            pred_qlabels = self.amortised_test(test_img_batch)
+            q_acc += accuracy(pred_qlabels, test_label_batch)
+            accuracy_list.append(accuracies)
+            print(accuracies.shape)
+        n_occluder_accuracy_list.append(np.mean(np.array(accuracy_list),axis=0))
+    n_occluder_accuracy_list = np.array(n_occluder_accuracy_list)
+    print("OCCLUDER ACCURACY LIST SIZE: ", n_occluder_accuracy_list.shape)
+    np.save(save_name + "_n_occluder_acc_list.npy",np.array(n_occluder_accuracy_list))
+    # plot
+    fig = plt.figure()
+    plt.title("Average Variational Inference improvement for n occluders")
+    plt.xlabel("Variational Step")
+    plt.ylabel("Accuracy")
+    for i,n_occ in enumerate(num_occluders):
+        print("LIST: ", n_occluder_accuracy_list[i].shape)
+        plt.plot(n_occluder_accuracy_list[i], label=str(n_occ) + " occluders")
+    plt.legend()
+    plt.show()
+
+    occluder_sizes = [1,2,3,4,5,6,7]
+    occluder_size_accuracy_list = []
+    for (i,occ_size) in enumerate(occluder_sizes):
+        accuracy_list = []
+        for (test_img_batch, test_label_batch) in zip(test_img_list, test_label_list):
+            occluded_batch = apply_batch(test_img_batch,occlude,(occ_size,occ_size),5,0)
+            pred_imgs, pred_labels,accuracies = self.test(occluded_batch, test_label_batch,save_accuracy_steps=True)
+            tot_acc += accuracy(pred_labels, test_label_batch)
+            pred_qlabels = self.amortised_test(test_img_batch)
+            q_acc += accuracy(pred_qlabels, test_label_batch)
+            accuracy_list.append(np.array(accuracies))
+            print(accuracies.shape)
+        occluder_size_accuracy_list.append(np.mean(np.array(accuracy_list),axis=0))
+    occluder_size_accuracy_list = np.array(occluder_size_accuracy_list)
+    np.save(save_name + "_occluder_size_acc_list.npy",np.array(occluder_size_accuracy_list))
+    # plot
+    fig = plt.figure()
+    plt.title("Average Variational Inference improvement for occluder_size")
+    plt.xlabel("Variational Step")
+    plt.ylabel("Accuracy")
+    for i,occ_size in enumerate(occluder_sizes):
+        print("lists: " ,occluder_size_accuracy_list[i].shape)
+        plt.plot(occluder_size_accuracy_list[i], label=str(occ_size) + " by " + str(occ_size))
+    plt.legend()
     plt.show()
 
 
@@ -400,7 +457,7 @@ def run_amortised(save_name):
     layer_sizes = [784, 300, 100, 10]
     n_layers = len(layer_sizes)
     n_epochs = 101
-    inference_thresh = 0.5
+    inference_thresh = 0.2
 
     train_set = torchvision.datasets.MNIST("MNIST_train", download=True, train=True)
     test_set = torchvision.datasets.MNIST("MNIST_test", download=True, train=False)
