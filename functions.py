@@ -38,13 +38,20 @@ def onehot(x):
     z[x] = 1
     return z
 
-def accuracy(pred_labels, true_labels):
+def accuracy(pred_labels, true_labels,print_error= False):
     #print("IN accuracy", pred_labels, true_labels)
     correct = 0
     batch_size = pred_labels.shape[1]
     for b in range(batch_size):
       if np.argmax(pred_labels[:,b]) == np.argmax(true_labels[:,b]):
         correct +=1
+      else:
+        if print_error:
+            print("PREDICTION: ",pred_labels[:,b] )
+            print("LABEL: ",true_labels[:,b])
+        else:
+            pass
+
     return correct / batch_size
 
 def same_sign(base, adjust):
@@ -78,3 +85,15 @@ def dropout_mask(base_arr, dropout_prob):
       if rand <= dropout_prob:
         drop[i,j] = 0
   return drop
+
+#todo do a graph of how important sign concordance is here - for a simple weight transport tiny paper
+# also similarly with and without synaptic weight adjustment too here. To replicate this paper effectively https://arxiv.org/pdf/1510.05067.pdf
+def sign_concordance(base, adjust, concordance_prob):
+    adjust = same_sign(base,adjust)
+    w,h = adjust.shape
+    for i in range(w):
+        for j in range(h):
+            r = np.random.uniform(low=0,high=1)
+            if r >= concordance_prob:
+                adjust[i,j] = -adjust[i,j]
+    return adjust
