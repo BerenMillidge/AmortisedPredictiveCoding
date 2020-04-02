@@ -5,6 +5,7 @@ import torch
 from functions import *
 import sys
 import torchvision
+import scipy.special as scp
 
 class PredictiveCodingLayer(object):
   def __init__(self,input_size, output_size, batch_size, fn,fn_deriv,learning_rate):
@@ -236,11 +237,14 @@ class AmortisedPredictiveCodingNetwork(object):
 
         F = np.sum(np.array([np.mean(np.square(pe)) for pe in self.prediction_errors]))
         if F <= self.inference_threshold:
+            #print("BREAKING DUE TO UNDER THRESHOLD: ", F)
             break
 
     pred_imgs = deepcopy(self.predictions[0])
     pred_labels = deepcopy(self.layers[-1].mu)
     return pred_imgs, pred_labels
+
+
 
   def train_batch(self, img_batch, label_batch):
     self.forward_pass(img_batch, label_batch, test=False)
@@ -252,11 +256,15 @@ class AmortisedPredictiveCodingNetwork(object):
             #print("updating error dispersion weights: ", self.prediction_errors[l+1].shape, self.predictions[l+1].T.shape)
             #print("L: ",np.mean(self.error_weights[l]))
             #self.error_weights[l] += self.learning_rate * np.dot(self.prediction_errors[l+1],self.predictions[l+1].T)
-            self.error_weights[l] -= self.learning_rate * np.dot(self.prediction_errors[l+1],self.layers[l].mu.T)
-        if l == 0:
-            self.q_layers[l].update_weights(self.amortised_prediction_errors[l], self.amortised_predictions[0])
-        else:
-            self.q_layers[l].update_weights(self.amortised_prediction_errors[l], self.layers[l-1].mu)
+           self.error_weights[l] -=  self.learning_rate * np.dot(self.prediction_errors[l+1],self.layers[l].mu.T) + (0.001 * self.learning_rate * self.error_weights[l])
+           #self.error_weights[l] = scp.softmax(self.error_weights[l],axis=0)
+           #self.error_weights[l] /= (np.sum(self.error_weights[l],axis=0) + 1e-4)
+           self.error_weights[l] = np.clip(self.error_weights[l],-100,100)
+
+        #if l == 0:
+        #   self.q_layers[l].update_weights(self.amortised_prediction_errors[l], self.amortised_predictions[0])
+        #else:
+        #    self.q_layers[l].update_weights(self.amortised_prediction_errors[l], self.layers[l-1].mu)
 
     return self.prediction_errors, self.predictions,self.amortised_predictions, self.amortised_prediction_errors
 
@@ -321,9 +329,10 @@ class AmortisedPredictiveCodingNetwork(object):
             print("Amortised Accuracy: ", q_acc / len(imglist))
             variational_accs.append(tot_acc/len(imglist))
             amortised_accs.append(q_acc / len(imglist))
-            for i in range(self.L):
-                plt.imshow(self.error_weights[i])
-                plt.show()
+            if self.error_dispersion:
+                for i in range(self.L):
+                    plt.imshow(self.error_weights[i])
+                    plt.show()
             print("TEST ACCURACIES")
             tot_acc = 0
             q_acc = 0
@@ -341,9 +350,9 @@ class AmortisedPredictiveCodingNetwork(object):
             np.save(save_name + "_test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
             np.save(save_name+ "_test_amortised_acc.npy", np.array(deepcopy(test_amortised_accs)))
             #save the weights:
-            for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
-                np.save(save_name + "_layer_"+str(i)+"_weights.npy",layer.weights)
-                np.save(save_name + "_layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
+            #for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
+            #    np.save(save_name + "_layer_"+str(i)+"_weights.npy",layer.weights)
+            #    np.save(save_name + "_layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
 
 
     prediction_errors = np.array(prediction_errors)
@@ -374,9 +383,9 @@ class AmortisedPredictiveCodingNetwork(object):
     np.save(save_name + "_test_variational_acc.npy", np.array(test_variational_accs))
     np.save(save_name+ "_test_amortised_acc.npy", np.array(test_amortised_accs))
     #save the weights:
-    for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
-        np.save(save_name + "_layer_"+str(i)+"_weights.npy",layer.weights)
-        np.save(save_name + "_layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
+    #for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
+    #    np.save(save_name + "_layer_"+str(i)+"_weights.npy",layer.weights)
+    #    np.save(save_name + "_layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
     print("Accuracy plots")
     plt.title("Variational Accuracy")
     plt.xlabel("Epoch number")
@@ -403,15 +412,15 @@ class AmortisedPredictiveCodingNetwork(object):
 def run_amortised(save_name,error_dispersion,update_error_dispersion_weights):
     batch_size = 10
     num_batches = 10
-    num_test_batches = 20
+    num_test_batches = 1
     n_inference_steps_train = 100
     n_inference_steps_test = 1000
     learning_rate = 0.01
     amortised_learning_rate = 0.001
     layer_sizes = [784, 300, 100, 10]
     n_layers = len(layer_sizes)
-    n_epochs = 101
-    inference_thresh = 0.5
+    n_epochs = 201
+    inference_thresh = 0.2
 
     train_set = torchvision.datasets.MNIST("MNIST_train", download=True, train=True)
     test_set = torchvision.datasets.MNIST("MNIST_test", download=True, train=False)
@@ -463,8 +472,8 @@ def run_amortised(save_name,error_dispersion,update_error_dispersion_weights):
 if __name__ == "__main__":
     sname = str(sys.argv[1])
     error_dispersion = True
-    if len(sys.argv) >3:
-        if sys.argv[3]== False:
+    if len(sys.argv) >2:
+        if sys.argv[2]== False:
             error_dispersion = False
     update_error_dispersion_weights = True
     if len(sys.argv) >3:
