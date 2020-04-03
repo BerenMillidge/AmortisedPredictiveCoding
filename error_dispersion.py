@@ -19,8 +19,18 @@ class PredictiveCodingLayer(object):
     print(input_size, batch_size)
     self.mu = np.random.normal(0,1,[output_size,batch_size])
 
-  def update_mu(self, pe, pe_below):
-    self.mu+= self.learning_rate * (-pe + (np.dot(self.weights.T, pe_below *self.fn_deriv(np.dot(self.weights, self.mu)))))
+  def update_mu(self, pe, pe_below,error_dispersion=False, error_weight=None):
+      #in a better software architecture this disastrous hack wouldn't be necessary
+    if error_dispersion:
+        #print("UPDATING ACCORDING TO ERROR DISPERSION")
+        #print(error_weight.shape, pe.shape)
+        mu = deepcopy(self.mu)
+        self.mu+= self.learning_rate * (-np.dot(error_weight, pe) + (np.dot(self.weights.T, pe_below *self.fn_deriv(np.dot(self.weights, self.mu)))))
+        #self.mu = np.clip(self.mu,-100,100)
+        print("DIFF: ", np.sum(np.abs(mu - self.mu)))
+    else:
+        print("UPDATING WITHOUT ERROR DISPERSION")
+        self.mu+= self.learning_rate * (-pe + (np.dot(self.weights.T, pe_below *self.fn_deriv(np.dot(self.weights, self.mu)))))
 
   def step(self,pe_below,pred,use_top_down_pe=True):
     if use_top_down_pe:
@@ -161,9 +171,9 @@ class AmortisedPredictiveCodingNetwork(object):
     if self.error_dispersion:
         print("creating error dispersion weights")
         #identity mapping - this should be identical to the one-to-one PE computation
-        #self.error_weights = [np.identity(self.layer_sizes[i+1]) for i in range(len(self.layer_sizes)-1)]
+        self.error_weights = [np.identity(self.layer_sizes[i+1]) for i in range(len(self.layer_sizes)-1)]
         #random pes
-        self.error_weights = [np.random.normal(0,0.05,[self.layer_sizes[i+1],self.layer_sizes[i+1]]) for i in range(len(self.layer_sizes)-1)]
+        #self.error_weights = [np.random.normal(0,0.05,[self.layer_sizes[i+1],self.layer_sizes[i+1]]) for i in range(len(self.layer_sizes)-1)]
     self.layers = []
     self.q_layers = []
     for i in range(len(self.layer_sizes)-1):
@@ -225,9 +235,9 @@ class AmortisedPredictiveCodingNetwork(object):
             else:
                 self.prediction_errors[i+1] = self.layers[i].mu - self.predictions[i+1]
             if i != self.L-1:
-                self.layers[i].update_mu(self.prediction_errors[i+1], self.prediction_errors[i])
+                self.layers[i].update_mu(self.prediction_errors[i+1], self.prediction_errors[i],self.error_dispersion,self.error_weights[i])
             else:
-                self.layers[i].update_mu(np.zeros_like(self.layers[i].mu), self.prediction_errors[i])
+                self.layers[i].update_mu(np.zeros_like(self.layers[i].mu), self.prediction_errors[i],self.error_dispersion,self.error_weights[i])
             self.predictions[i] = self.layers[i].predict()
             #set reset the final layer mus to the batch label
         if not test:
@@ -253,13 +263,14 @@ class AmortisedPredictiveCodingNetwork(object):
         self.amortised_prediction_errors[l] = self.layers[l].mu - self.amortised_predictions[l+1]
         #update the error dispersion weights should be straightforward
         if self.update_error_dispersion_weights:
+           #print("UPDATING ERROR DISPERSION WEIGHTS")
             #print("updating error dispersion weights: ", self.prediction_errors[l+1].shape, self.predictions[l+1].T.shape)
             #print("L: ",np.mean(self.error_weights[l]))
             #self.error_weights[l] += self.learning_rate * np.dot(self.prediction_errors[l+1],self.predictions[l+1].T)
-           self.error_weights[l] -=  self.learning_rate * np.dot(self.prediction_errors[l+1],self.layers[l].mu.T) + (0.001 * self.learning_rate * self.error_weights[l])
+           self.error_weights[l] +=  self.learning_rate * np.dot(self.prediction_errors[l+1],self.layers[l].mu.T).T #+ (0.001 * self.learning_rate * self.error_weights[l])
            #self.error_weights[l] = scp.softmax(self.error_weights[l],axis=0)
            #self.error_weights[l] /= (np.sum(self.error_weights[l],axis=0) + 1e-4)
-           self.error_weights[l] = np.clip(self.error_weights[l],-100,100)
+           #self.error_weights[l] = np.clip(self.error_weights[l],-100,100)
 
         #if l == 0:
         #   self.q_layers[l].update_weights(self.amortised_prediction_errors[l], self.amortised_predictions[0])
