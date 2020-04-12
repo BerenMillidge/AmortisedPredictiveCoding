@@ -424,10 +424,10 @@ class AmortisedPredictiveCodingNetwork(object):
             np.save(save_name + "_amortised_acc.npy", np.array(deepcopy(amortised_accs)))
             np.save(save_name + "_test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
             np.save(save_name+ "_test_amortised_acc.npy", np.array(deepcopy(test_amortised_accs)))"""
-            np.save(log_path + "/variational_acc.npy", np.array(variational_accs))
-            np.save(log_path + "/amortised_acc.npy", np.array(amortised_accs))
-            np.save(log_path + "/test_variational_acc.npy", np.array(test_variational_accs))
-            np.save(log_path+ "/test_amortised_acc.npy", np.array(test_amortised_accs))
+            np.save(log_path + "/variational_acc.npy", np.array(deepcopy(variational_accs)))
+            np.save(log_path + "/amortised_acc.npy", np.array(deepcopy(amortised_accs)))
+            np.save(log_path + "/test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
+            np.save(log_path+ "/test_amortised_acc.npy", np.array(deepcopy(test_amortised_accs)))
             subprocess.call(['rsync','--archive','--update','--compress','--progress',str(log_path) +"/",str(save_path)])
             print("Rsynced files from: " + str(log_path) + "/ " + " to" + str(save_path))
             now = datetime.now()
@@ -443,10 +443,10 @@ class AmortisedPredictiveCodingNetwork(object):
     prediction_errors = torch.mean(torch.from_numpy(prediction_errors),dim=1).numpy()
     amortised_prediction_errors = torch.mean(torch.from_numpy(amortised_prediction_errors),dim=1).numpy()
 
-    np.save(log_path + "/variational_acc.npy", np.array(variational_accs))
-    np.save(log_path + "/amortised_acc.npy", np.array(amortised_accs))
-    np.save(log_path + "/test_variational_acc.npy", np.array(test_variational_accs))
-    np.save(log_path+ "/test_amortised_acc.npy", np.array(test_amortised_accs))
+    np.save(log_path + "/variational_acc.npy", np.array(deepcopy(variational_accs)))
+    np.save(log_path + "/amortised_acc.npy", np.array(deepcopy(amortised_accs)))
+    np.save(log_path + "/test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
+    np.save(log_path+ "/test_amortised_acc.npy", np.array(deepcopy(test_amortised_accs)))
     #save the weights:
     #for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
     #    np.save(save_name + "_layer_"+str(i)+"_weights.npy",layer.weights)
@@ -555,4 +555,9 @@ if __name__ == "__main__":
         if sys.argv[4] == "False":
             use_backward_nonlinearity = False
     compute_weight_angles = False
+
+    if save_path != "":
+        subprocess.call(["mkdir","-p",str(save_path)])
+    if log_path != "":
+        subprocess.call(["mkdir","-p",str(log_path)])
     run_amortised(log_path, save_path,use_backward_weights,use_backward_nonlinearity,compute_weight_angles)

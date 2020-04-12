@@ -361,10 +361,10 @@ class AmortisedPredictiveCodingNetwork(object):
             print(f"Test Amortised Accuracy: {q_acc / len(test_img_list)}")
             test_variational_accs.append(tot_acc/len(test_img_list))
             test_amortised_accs.append(q_acc / len(test_img_list))
-            np.save(log_path + "/variational_acc.npy", np.array(variational_accs))
-            np.save(log_path + "/amortised_acc.npy", np.array(amortised_accs))
-            np.save(log_path + "/test_variational_acc.npy", np.array(test_variational_accs))
-            np.save(log_path+ "/test_amortised_acc.npy", np.array(test_amortised_accs))
+            np.save(log_path + "/variational_acc.npy",np.array(deepcopy(variational_accs)))
+            np.save(log_path + "/amortised_acc.npy", np.array(deepcopy(amortised_accs)))
+            np.save(log_path + "/test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
+            np.save(log_path+ "/test_amortised_acc.npy", np.array(deepcopy(test_amortised_accs)))
             #save the weights:
             #for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
             #    np.save(save_name + "_layer_"+str(i)+"_weights.npy",layer.weights)
@@ -398,10 +398,10 @@ class AmortisedPredictiveCodingNetwork(object):
     #pred_imgs, pred_labels = self.test(imglist[0],labellist[0])
     #pred_qlabels = self.amortised_test(imglist[0])
     #self.plot_batch_results(pred_labels, pred_qlabels, labellist[0])
-    np.save(log_path + "/variational_acc.npy", np.array(variational_accs))
-    np.save(log_path + "/amortised_acc.npy", np.array(amortised_accs))
-    np.save(log_path + "/test_variational_acc.npy", np.array(test_variational_accs))
-    np.save(log_path+ "/test_amortised_acc.npy", np.array(test_amortised_accs))
+    np.save(log_path + "/variational_acc.npy", np.array(deepcopy(variational_accs)))
+    np.save(log_path + "/amortised_acc.npy", np.array(deepcopy(amortised_accs)))
+    np.save(log_path + "/test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
+    np.save(log_path+ "/test_amortised_acc.npy", np.array(deepcopy(test_amortised_accs)))
     #save the weights:
     #for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
     #    np.save(save_name + "_layer_"+str(i)+"_weights.npy",layer.weights)
@@ -501,6 +501,11 @@ def boolcheck(x):
 if __name__ == "__main__":
     log_path = str(sys.argv[1])
     save_path = str(sys.argv[2])
+
+    if save_path != "":
+        subprocess.call(["mkdir","-p",str(save_path)])
+    if log_path != "":
+        subprocess.call(["mkdir","-p",str(log_path)])
 
     error_dispersion = True
     update_error_dispersion_weights = True
