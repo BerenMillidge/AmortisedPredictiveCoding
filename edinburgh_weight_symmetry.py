@@ -373,7 +373,7 @@ class AmortisedPredictiveCodingNetwork(object):
       return correct / batch_size
 
 
-  def train(self, imglist, labellist,test_img_list, test_label_list, n_epochs,save_name):
+  def train(self, imglist, labellist,test_img_list, test_label_list, n_epochs,log_path, save_path):
     prediction_errors = []
     amortised_prediction_errors = []
     variational_accs = []
