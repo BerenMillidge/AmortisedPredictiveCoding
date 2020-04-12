@@ -295,7 +295,7 @@ class AmortisedPredictiveCodingNetwork(object):
 
   def plot_batch_results(self,pred_labels,amortised_labels, true_labels):
     batch_size = pred_labels.shape[1]
-    for b in range(batch_size):
+    #for b in range(batch_size):
       #print("True labels: ", true_labels[:,b])
       #print("Variational predictions: ")
       #plt.plot(pred_labels[:,b])
