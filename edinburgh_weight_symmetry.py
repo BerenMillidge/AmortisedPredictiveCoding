@@ -13,7 +13,7 @@ from datetime import datetime
 import argparse
 
 class PredictiveCodingLayer(object):
-  def __init__(self,input_size, output_size, batch_size, fn,fn_deriv,learning_rate,dropout_prob = None,use_backward_nonlinearity=True):
+  def __init__(self,input_size, output_size, batch_size, fn,fn_deriv,learning_rate,dropout_prob = None,use_backward_nonlinearity=True,use_backward_weights=True):
     self.input_size = input_size
     self.output_size = output_size
     self.batch_size = batch_size
@@ -22,10 +22,12 @@ class PredictiveCodingLayer(object):
     self.learning_rate = learning_rate
     self.dropout_prob = dropout_prob
     self.use_backward_nonlinearity = use_backward_nonlinearity
+    self.use_backward_weights = use_backward_weights
     self.weights = np.random.normal(0,0.1,[input_size, output_size])
-    #self.backward_weights = same_sign(self.weights.T, np.random.normal(0,0.1,[input_size,output_size]).T)
-    #self.backward_weights = np.random.normal(0,0.1,[input_size, output_size]).T
-    self.backward_weights = self.weights.T
+    if self.use_backward_weights:
+        self.backward_weights = same_sign(self.weights.T, np.random.normal(0,0.1,[input_size,output_size]).T)
+    else:
+        self.backward_weights = self.weights.T
     # do dropout if required
     if self.dropout_prob is not None:
         self.weight_mask = dropout_mask(self.weights, self.dropout_prob)
@@ -217,7 +219,7 @@ class AmortisationLayer(object):
 
 
 class AmortisedPredictiveCodingNetwork(object):
-  def __init__(self, layer_sizes,batch_size,learning_rate,amortised_learning_rate,n_inference_steps_train,n_inference_steps_test, f,df,qf,dqf,inference_threshold=0.1,use_backward_weights = True,use_backward_nonlinearity=True,compute_weight_angles=True):
+  def __init__(self, layer_sizes,batch_size,learning_rate,amortised_learning_rate,n_inference_steps_train,n_inference_steps_test, f,df,qf,dqf,inference_threshold=0.1,use_backward_weights = True,use_backward_nonlinearity=True,update_backward_weights=True,compute_weight_angles=True):
     self.layer_sizes = layer_sizes
     self.batch_size = batch_size
     self.learning_rate = learning_rate
@@ -231,6 +233,7 @@ class AmortisedPredictiveCodingNetwork(object):
     self.inference_threshold = inference_threshold
     self.use_backward_weights = use_backward_weights
     self.use_backward_nonlinearity = use_backward_nonlinearity
+    self.update_backward_weights = update_backward_weights
     self.compute_weight_angles = compute_weight_angles
     if self.compute_weight_angles:
         self.weight_angles = [[] for i in range(len(self.layer_sizes))]
@@ -239,7 +242,7 @@ class AmortisedPredictiveCodingNetwork(object):
     self.layers = []
     self.q_layers = []
     for i in range(len(self.layer_sizes)-1):
-      self.layers.append(PredictiveCodingLayer(self.layer_sizes[i], self.layer_sizes[i+1], self.batch_size, self.f,self.df,self.learning_rate,use_backward_nonlinearity=self.use_backward_nonlinearity))
+      self.layers.append(PredictiveCodingLayer(self.layer_sizes[i], self.layer_sizes[i+1], self.batch_size, self.f,self.df,self.learning_rate,use_backward_nonlinearity=self.use_backward_nonlinearity,use_backward_weights=self.use_backward_weights))
     #initialize amortised networks
     for i in range(len(self.layer_sizes)-1):
       self.q_layers.append(AmortisationLayer(self.layer_sizes[i+1], self.layer_sizes[i], self.amortised_learning_rate,self.batch_size, self.qf,self.dqf,use_backward_nonlinearity=self.use_backward_nonlinearity))
@@ -330,7 +333,7 @@ class AmortisedPredictiveCodingNetwork(object):
     #where am I going to add weight updates. It IS here somewhere... but where!
     for l in range(self.L):
         self.layers[l].update_weights(self.prediction_errors[l])
-        if self.use_backward_weights:
+        if self.update_backward_weights:
             self.layers[l].update_backward_weights(self.prediction_errors[l])
         if self.compute_weight_angles:
             self.weight_angles[l].append(self.cosine_similarity(self.layers[l].weights.T, self.layers[l].backward_weights))
@@ -410,7 +413,7 @@ class AmortisedPredictiveCodingNetwork(object):
             #    plt.show()
             print("TEST ACCURACIES")
             tot_acc = 0
-            """q_acc = 0
+            q_acc = 0
             for (test_img_batch, test_label_batch) in zip(test_img_list, test_label_list):
                 pred_imgs, pred_labels = self.test(test_img_batch, test_label_batch)
                 tot_acc += accuracy(pred_labels, test_label_batch)
@@ -420,10 +423,6 @@ class AmortisedPredictiveCodingNetwork(object):
             print(f"Test Amortised Accuracy: {q_acc / len(test_img_list)}")
             test_variational_accs.append(tot_acc/len(test_img_list))
             test_amortised_accs.append(q_acc / len(test_img_list))
-            np.save(save_name + "_variational_acc.npy", np.array(deepcopy(variational_accs)))
-            np.save(save_name + "_amortised_acc.npy", np.array(deepcopy(amortised_accs)))
-            np.save(save_name + "_test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
-            np.save(save_name+ "_test_amortised_acc.npy", np.array(deepcopy(test_amortised_accs)))"""
             np.save(log_path + "/variational_acc.npy", np.array(deepcopy(variational_accs)))
             np.save(log_path + "/amortised_acc.npy", np.array(deepcopy(amortised_accs)))
             np.save(log_path + "/test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
@@ -482,7 +481,7 @@ class AmortisedPredictiveCodingNetwork(object):
     plt.show()"""
 
 
-def run_amortised(log_path, save_path,use_backward_weights,use_backward_nonlinearity,compute_weight_angles):
+def run_amortised(log_path, save_path,use_backward_weights,use_backward_nonlinearity,update_backward_weights,compute_weight_angles):
     batch_size = 10
     num_batches = 10
     num_test_batches = 20
@@ -539,6 +538,7 @@ def run_amortised(log_path, save_path,use_backward_weights,use_backward_nonlinea
         inference_threshold=inference_thresh,
         use_backward_weights = use_backward_weights,
         use_backward_nonlinearity = use_backward_nonlinearity,
+        update_backward_weights = update_backward_weights,
         compute_weight_angles = compute_weight_angles,
     )
     pred_net.train(img_list, label_list,test_img_list, test_label_list, n_epochs,log_path, save_path)
@@ -548,16 +548,23 @@ if __name__ == "__main__":
     save_path = str(sys.argv[2])
     use_backward_weights = True
     use_backward_nonlinearity = True
+    update_backward_weights = True
     if len(sys.argv) > 3:
         if sys.argv[3] == "False":
             use_backward_weights = False
     if len(sys.argv) > 4:
         if sys.argv[4] == "False":
+            update_backward_weights = False
+    if len(sys.argv) > 5:
+        if sys.argv[5] == "False":
             use_backward_nonlinearity = False
     compute_weight_angles = False
+    print("Backward weights: ", use_backward_weights)
+    print("Use backward nonlinearity: ", use_backward_nonlinearity)
+    print("update_backward_weights: ", update_backward_weights)
 
     if save_path != "":
         subprocess.call(["mkdir","-p",str(save_path)])
     if log_path != "":
         subprocess.call(["mkdir","-p",str(log_path)])
-    run_amortised(log_path, save_path,use_backward_weights,use_backward_nonlinearity,compute_weight_angles)
+    run_amortised(log_path, save_path,use_backward_weights,use_backward_nonlinearity,update_backward_weights,compute_weight_angles)

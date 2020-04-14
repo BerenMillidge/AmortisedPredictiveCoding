@@ -333,7 +333,7 @@ class AmortisedPredictiveCodingNetwork(object):
         prediction_errors.append(np.array(batch_pes))
         amortised_prediction_errors.append(np.array(batch_qpes))
 
-        if n % 10 == 0:
+        if n % 1 == 0:
             tot_acc = 0
             q_acc = 0
             for (img_batch, label_batch) in zip(imglist, labellist):
@@ -441,12 +441,12 @@ def run_amortised(log_path, save_path,error_dispersion,update_error_dispersion_w
     num_test_batches = 1
     n_inference_steps_train = 100
     n_inference_steps_test = 1000
-    learning_rate = 0.01
+    learning_rate = 0.005
     amortised_learning_rate = 0.001
     layer_sizes = [784, 300, 100, 10]
     n_layers = len(layer_sizes)
-    n_epochs = 201
-    inference_thresh = 0.2
+    n_epochs = 101
+    inference_thresh = 0.01
 
     train_set = torchvision.datasets.MNIST("MNIST_train", download=True, train=True)
     test_set = torchvision.datasets.MNIST("MNIST_test", download=True, train=False)
