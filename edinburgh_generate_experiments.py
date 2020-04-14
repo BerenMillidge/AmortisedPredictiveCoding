@@ -13,21 +13,21 @@ exp_name = "backward_weight_update"
 for s in range(seeds):
     lpath = log_path + "/"+str(exp_name) + "/" + str(s)
     spath = save_path + "/" + str(exp_name) + "/" + str(s)
-    final_call = base_call + " " + str(lpath) + " " + str(spath) + " " + "True" + " " + "True"
+    final_call = base_call + " " + str(lpath) + " " + str(spath) + " " + "True" + " " + "True" + " " + "True"
     print(final_call, file=output_file)
 
 exp_name = "no_backward_weight_update"
 for s in range(seeds):
     lpath = log_path + "/"+str(exp_name) + "/" + str(s)
     spath = save_path + "/" + str(exp_name) + "/" + str(s)
-    final_call = base_call + " " + str(lpath) + " " + str(spath) + " " + "False" + " " + "True"
+    final_call = base_call + " " + str(lpath) + " " + str(spath) + " " + "True" + " " + "False" + " " + "True"
     print(final_call, file=output_file)
 
 exp_name = "no_backward_nonlinearities"
 for s in range(seeds):
     lpath = log_path + "/"+str(exp_name) + "/" + str(s)
     spath = save_path + "/" + str(exp_name) + "/" + str(s)
-    final_call = base_call + " " + str(lpath) + " " + str(spath) + " " + "True" + " " + "False"
+    final_call = base_call + " " + str(lpath) + " " + str(spath) + " " + "True" + " " +"True" +" " + "False"
     print(final_call, file=output_file)
 
 base_call = "python edinburgh_error_dispersion.py"
