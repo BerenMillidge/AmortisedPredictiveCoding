@@ -361,19 +361,28 @@ class AmortisedPredictiveCodingNetwork(object):
             print(f"Test Amortised Accuracy: {q_acc / len(test_img_list)}")
             test_variational_accs.append(tot_acc/len(test_img_list))
             test_amortised_accs.append(q_acc / len(test_img_list))
-            np.save(log_path + "/variational_acc.npy",np.array(deepcopy(variational_accs)))
-            np.save(log_path + "/amortised_acc.npy", np.array(deepcopy(amortised_accs)))
-            np.save(log_path + "/test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
-            np.save(log_path+ "/test_amortised_acc.npy", np.array(deepcopy(test_amortised_accs)))
+            #np.save(log_path + "/variational_acc.npy",np.array(deepcopy(variational_accs)))
+            #np.save(log_path + "/amortised_acc.npy", np.array(deepcopy(amortised_accs)))
+            #np.save(log_path + "/test_variational_acc.npy", np.array(deepcopy(test_variational_accs)))
+            #np.save(log_path+ "/test_amortised_acc.npy", np.array(deepcopy(test_amortised_accs)))
             #save the weights:
             #for (i,(layer, qlayer)) in enumerate(zip(self.layers, self.q_layers)):
             #    np.save(save_name + "_layer_"+str(i)+"_weights.npy",layer.weights)
             #    np.save(save_name + "_layer_"+str(i)+"_amortisation_weights.npy",qlayer.weights)
             #SAVE the results to the edinburgh computer from scratch space to main space
-            subprocess.call(['rsync','--archive','--update','--compress','--progress',str(log_path) +"/",str(save_path)])
-            print("Rsynced files from: " + str(log_path) + "/ " + " to" + str(save_path))
-            now = datetime.now()
-            current_time = str(now.strftime("%H:%M:%S"))
+            #subprocess.call(['rsync','--archive','--update','--compress','--progress',str(log_path) +"/",str(save_path)])
+            #print("Rsynced files from: " + str(log_path) + "/ " + " to" + str(save_path))
+            #now = datetime.now()
+            #current_time = str(now.strftime("%H:%M:%S"))
+
+            # plot the error dispersion weights
+            #for l in range(self.L):
+            #    fig = plt.figure()
+            #    plt.title("Error Dispersion Weights Layer " + str(l))
+            #    plt.xticks([])
+            #    plt.yticks([])
+            #    plt.imshow(self.error_weights[l],cmap='gray')
+            #    plt.show()
 
     prediction_errors = np.array(prediction_errors)
     amortised_prediction_errors = np.array(amortised_prediction_errors)
@@ -438,10 +447,10 @@ class AmortisedPredictiveCodingNetwork(object):
 def run_amortised(log_path, save_path,error_dispersion,update_error_dispersion_weights):
     batch_size = 10
     num_batches = 10
-    num_test_batches = 1
+    num_test_batches = 20
     n_inference_steps_train = 100
     n_inference_steps_test = 1000
-    learning_rate = 0.005
+    learning_rate = 0.001
     amortised_learning_rate = 0.001
     layer_sizes = [784, 300, 100, 10]
     n_layers = len(layer_sizes)

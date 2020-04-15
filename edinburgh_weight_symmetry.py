@@ -91,7 +91,7 @@ class PredictiveCodingLayer(object):
 
   def update_backward_weights(self, pe_below):
     if self.use_backward_nonlinearity:
-        print("USING NONLINEARITY")
+        #print("USING NONLINEARITY")
         self.backward_weights += self.learning_rate * np.dot(self.mu,(pe_below * self.fn_deriv(np.dot(self.weights, self.mu))).T)
     else:
         #print("NO NONLINEARITY")
@@ -219,7 +219,7 @@ class AmortisationLayer(object):
 
 
 class AmortisedPredictiveCodingNetwork(object):
-  def __init__(self, layer_sizes,batch_size,learning_rate,amortised_learning_rate,n_inference_steps_train,n_inference_steps_test, f,df,qf,dqf,inference_threshold=0.1,use_backward_weights = True,use_backward_nonlinearity=True,update_backward_weights=True,compute_weight_angles=True):
+  def __init__(self, layer_sizes,batch_size,learning_rate,amortised_learning_rate,n_inference_steps_train,n_inference_steps_test, f,df,qf,dqf,inference_threshold=0.1,use_backward_weights = True,use_backward_nonlinearity=True,update_backward_weights=True,compute_weight_angles=True,compute_weight_diffs = True):
     self.layer_sizes = layer_sizes
     self.batch_size = batch_size
     self.learning_rate = learning_rate
@@ -235,6 +235,7 @@ class AmortisedPredictiveCodingNetwork(object):
     self.use_backward_nonlinearity = use_backward_nonlinearity
     self.update_backward_weights = update_backward_weights
     self.compute_weight_angles = compute_weight_angles
+    self.compute_weight_diffs = compute_weight_diffs
     if self.compute_weight_angles:
         self.weight_angles = [[] for i in range(len(self.layer_sizes))]
         self.average_weight_angles =[]
@@ -335,8 +336,9 @@ class AmortisedPredictiveCodingNetwork(object):
         self.layers[l].update_weights(self.prediction_errors[l])
         if self.update_backward_weights:
             self.layers[l].update_backward_weights(self.prediction_errors[l])
-        if self.compute_weight_angles:
-            self.weight_angles[l].append(self.cosine_similarity(self.layers[l].weights.T, self.layers[l].backward_weights))
+
+        #if self.compute_weight_angles:
+        #    self.weight_angles[l].append(self.cosine_similarity(self.layers[l].weights.T, self.layers[l].backward_weights))
 
         self.amortised_prediction_errors[l] = self.layers[l].mu - self.amortised_predictions[l+1]
         #if l == 0:
@@ -375,6 +377,10 @@ class AmortisedPredictiveCodingNetwork(object):
           correct +=1
       return correct / batch_size
 
+  def compute_weight_differences(self):
+      for l in range(self.L):
+          self.weight_differences[l].append(np.mean(np.abs(self.layers[l].weights.T - self.layers[l].backward_weights)))
+
 
   def train(self, imglist, labellist,test_img_list, test_label_list, n_epochs,log_path, save_path):
     prediction_errors = []
@@ -383,6 +389,7 @@ class AmortisedPredictiveCodingNetwork(object):
     amortised_accs = []
     test_variational_accs = []
     test_amortised_accs = []
+    self.weight_differences = [[] for i in range(self.L)]
     for n in range(n_epochs):
         print("Epoch ", n)
         batch_pes = []
@@ -407,6 +414,8 @@ class AmortisedPredictiveCodingNetwork(object):
             print("Amortised Accuracy: ", q_acc / len(imglist))
             variational_accs.append(tot_acc/len(imglist))
             amortised_accs.append(q_acc / len(imglist))
+            self.compute_weight_differences()
+
             #if self.compute_weight_angles:
             #    #print(self.weight_angles)
             #    plt.plot(self.average_weight_angles)
@@ -441,6 +450,12 @@ class AmortisedPredictiveCodingNetwork(object):
     amortised_prediction_errors = np.array(amortised_prediction_errors)
     prediction_errors = torch.mean(torch.from_numpy(prediction_errors),dim=1).numpy()
     amortised_prediction_errors = torch.mean(torch.from_numpy(amortised_prediction_errors),dim=1).numpy()
+    if self.compute_weight_diffs:
+        for l in range(self.L):
+            np.save(log_path+"/weight_differences_layer_" + str(l)+".npy",np.array(self.weight_differences[l]))
+            #plt.title("Weight differences layer: " + str(l))
+            #plt.plot(self.weight_differences[l])
+            #plt.show()
 
     np.save(log_path + "/variational_acc.npy", np.array(deepcopy(variational_accs)))
     np.save(log_path + "/amortised_acc.npy", np.array(deepcopy(amortised_accs)))
@@ -456,7 +471,7 @@ class AmortisedPredictiveCodingNetwork(object):
     now = datetime.now()
     current_time = str(now.strftime("%H:%M:%S"))
 
-    #subprocess.call(['echo', f" TIME OF SAVE: {current_time}"])
+    subprocess.call(['echo', f" TIME OF SAVE: {current_time}"])
     """print("Accuracy plots")
     plt.title("Variational Accuracy")
     plt.xlabel("Epoch number")
@@ -481,7 +496,7 @@ class AmortisedPredictiveCodingNetwork(object):
     plt.show()"""
 
 
-def run_amortised(log_path, save_path,use_backward_weights,use_backward_nonlinearity,update_backward_weights,compute_weight_angles):
+def run_amortised(log_path, save_path,use_backward_weights,use_backward_nonlinearity,update_backward_weights,compute_weight_angles,compute_weight_diffs):
     batch_size = 10
     num_batches = 10
     num_test_batches = 20
@@ -540,6 +555,7 @@ def run_amortised(log_path, save_path,use_backward_weights,use_backward_nonlinea
         use_backward_nonlinearity = use_backward_nonlinearity,
         update_backward_weights = update_backward_weights,
         compute_weight_angles = compute_weight_angles,
+        compute_weight_diffs = compute_weight_diffs
     )
     pred_net.train(img_list, label_list,test_img_list, test_label_list, n_epochs,log_path, save_path)
 
@@ -549,6 +565,7 @@ if __name__ == "__main__":
     use_backward_weights = True
     use_backward_nonlinearity = True
     update_backward_weights = True
+    compute_weight_diffs = False
     if len(sys.argv) > 3:
         if sys.argv[3] == "False":
             use_backward_weights = False
@@ -558,6 +575,9 @@ if __name__ == "__main__":
     if len(sys.argv) > 5:
         if sys.argv[5] == "False":
             use_backward_nonlinearity = False
+    if len(sys.argv>6):
+        if sys.argv[6] == "True"
+        compute_weight_diffs = True
     compute_weight_angles = False
     print("Backward weights: ", use_backward_weights)
     print("Use backward nonlinearity: ", use_backward_nonlinearity)
@@ -567,4 +587,4 @@ if __name__ == "__main__":
         subprocess.call(["mkdir","-p",str(save_path)])
     if log_path != "":
         subprocess.call(["mkdir","-p",str(log_path)])
-    run_amortised(log_path, save_path,use_backward_weights,use_backward_nonlinearity,update_backward_weights,compute_weight_angles)
+    run_amortised(log_path, save_path,use_backward_weights,use_backward_nonlinearity,update_backward_weights,compute_weight_angles,compute_weight_diffs)
