@@ -23,7 +23,7 @@ for s in range(seeds):
     final_call = base_call + " " + str(lpath) + " " + str(spath) + " " + "True" + " " + "True" + " " + "True" " " + "True"
     print(final_call, file=output_file)
 
-base_call = "python edinburgh_error_dispersion.py"
+"""base_call = "python edinburgh_error_dispersion.py"
 exp_name = "proper_error_dispersion_with_weight_updates"
 for s in range(seeds):
     lpath = log_path + "/"+str(exp_name) + "/" + str(s)
@@ -38,7 +38,7 @@ for s in range(seeds):
     final_call = base_call + " " + str(lpath) + " " + str(spath) + " " + "False"
     print(final_call, file=output_file)
 
-
+"""
 """
 exp_name = "backward_weight_update"
 for s in range(seeds):
