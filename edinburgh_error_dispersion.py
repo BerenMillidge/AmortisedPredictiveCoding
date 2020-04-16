@@ -455,7 +455,7 @@ def run_amortised(log_path, save_path,error_dispersion,update_error_dispersion_w
     layer_sizes = [784, 300, 100, 10]
     n_layers = len(layer_sizes)
     n_epochs = 101
-    inference_thresh = 0.01
+    inference_thresh = 0.1
 
     train_set = torchvision.datasets.MNIST("MNIST_train", download=True, train=True)
     test_set = torchvision.datasets.MNIST("MNIST_test", download=True, train=False)

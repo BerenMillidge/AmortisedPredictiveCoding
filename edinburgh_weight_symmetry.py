@@ -379,7 +379,7 @@ class AmortisedPredictiveCodingNetwork(object):
 
   def compute_weight_differences(self):
       for l in range(self.L):
-          self.weight_differences[l].append(np.mean(np.abs(self.layers[l].weights.T - self.layers[l].backward_weights)))
+          self.weight_differences[l].append(deepcopy(np.mean(np.abs(self.layers[l].weights.T - self.layers[l].backward_weights))))
 
 
   def train(self, imglist, labellist,test_img_list, test_label_list, n_epochs,log_path, save_path):

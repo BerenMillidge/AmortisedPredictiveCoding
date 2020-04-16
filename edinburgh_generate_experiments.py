@@ -9,12 +9,12 @@ seeds = 5
 base_call = "python edinburgh_weight_symmetry.py"
 output_file = open(generated_name, "w")
 
-exp_name = "standard"
-for s in range(seeds):
-    lpath = log_path + "/"+str(exp_name) + "/" + str(s)
-    spath = save_path + "/" + str(exp_name) + "/" + str(s)
-    final_call = base_call + " " + str(lpath) + " " + str(spath) + " " + "False" + " " + "True" + " " + "True" " " + "False"
-    print(final_call, file=output_file)
+#exp_name = "standard"
+#for s in range(seeds):
+#    lpath = log_path + "/"+str(exp_name) + "/" + str(s)
+#    spath = save_path + "/" + str(exp_name) + "/" + str(s)
+#    final_call = base_call + " " + str(lpath) + " " + str(spath) + " " + "False" + " " + "True" + " " + "True" " " + "False"
+#    print(final_call, file=output_file)
 
 exp_name = "backward_weight_diffs"
 for s in range(seeds):
@@ -23,22 +23,22 @@ for s in range(seeds):
     final_call = base_call + " " + str(lpath) + " " + str(spath) + " " + "True" + " " + "True" + " " + "True" " " + "True"
     print(final_call, file=output_file)
 
-"""base_call = "python edinburgh_error_dispersion.py"
-exp_name = "proper_error_dispersion_with_weight_updates"
+base_call = "python edinburgh_error_dispersion.py"
+exp_name = "proper2_error_dispersion_with_weight_updates"
 for s in range(seeds):
     lpath = log_path + "/"+str(exp_name) + "/" + str(s)
     spath = save_path + "/" + str(exp_name) + "/" + str(s)
     final_call = base_call + " " + str(lpath) + " " + str(spath) + " " + "True"
     print(final_call, file=output_file)
 
-exp_name = "proper_error_dispersion_without_weight_updates"
+exp_name = "proper2_error_dispersion_without_weight_updates"
 for s in range(seeds):
     lpath = log_path + "/"+str(exp_name) + "/" + str(s)
     spath = save_path + "/" + str(exp_name) + "/" + str(s)
     final_call = base_call + " " + str(lpath) + " " + str(spath) + " " + "False"
     print(final_call, file=output_file)
 
-"""
+
 """
 exp_name = "backward_weight_update"
 for s in range(seeds):
