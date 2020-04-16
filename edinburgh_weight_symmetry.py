@@ -575,7 +575,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 5:
         if sys.argv[5] == "False":
             use_backward_nonlinearity = False
-    if len(sys.argv>6):
+    if len(sys.argv)>6:
         if sys.argv[6] == "True":
             compute_weight_diffs = True
     compute_weight_angles = False
