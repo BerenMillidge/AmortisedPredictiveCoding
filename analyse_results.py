@@ -1,46 +1,9 @@
-# okay, goal here is just to analyse the biological plausibility results correctly to get correct graphs I can use for that paper
-#to start getting it into a good draft shape to be out soon. This is important to get done ASAP. Really need to be better at being FAST with this stuff...
-#I have made improvements but could do faster. aim: to get all results done by 2:30... GO!
-# what are the key reults I require to have made? so I'm
-
-# okay, so these results are pretty rubbish. HOW should I deal with these...
-#it's all be doing poorly... today has been SO UNFOCUSED. REALLY BAD because just procrastinating
-#out of this stuff. It's just SO hard getting results including WHY collapse with the error dispersion error_dispersion_with_weight_updates
-# which is also rather odd. I'm not sure what's giong on? also the no backwards weights etc are somehow wrong...
-#including no proper standard experiment. Let's update that and try to figure out what's going wrong there
-#which seems important to figuring it out. Annoying that error dispersion with weight updates doesn't work
-#and kind of weird they all follow same pattern
-#also why test variational accuracies aren't existing which is more than a bit rubbish!
-#backward_weight_update			no_backward_nonlinearities
-#error_dispersion_with_weight_updates	no_backward_weight_update
-#error_dispersion_without_weight_updates
-
-# okay, perfect, these results are perfect. Let's integrate them all effectively into the correct forms
-#to get it sorted to create the best possible graphs for this stuff. yeah completely unsurprisingly alec is amazing! at generating
-#graphs and getting them sorted to specifications. I've got to look at HOW to do it... but he gives up nice plots...
-#I should try to steal his defaults.
-
-# some better ideas include obviously the weight matrices under dispersed error connections
-#and so forth so I can show that these aren't necessary... and the weight angles might be interesting to look at
-#also just the direct distance between i.e. the sum of the distances to see if it does self organise or not...
-#would be good to look at for this. Just do it in some case... but can run it multiple times obvs.
-#would be straightforward to get those exps running too! and plot the error dispersion weights
-# one key issue is we STILL don't have standard baselines, which we should have. s Let's get those asap
-
-# alec is good at this... I'm struggling to focus to even get stuff working in the first place. IF I can generate correct results here would be GREAT
-#so I can get this paper close to completion in the end would be FANTASTIC
-#try to get all this stuff done with correct results tomorrow morning so you can do amortisation in the afternoon...
-#going to be friday when this is done due to general multileveled failure... really quite irritating... but so it goes...
-#GOT to do better. producing rubbish graphs is it's own difficulty but able to do that better
-#and then keynote etc will pretty much take up a day!
 import numpy as np
 import json
 import matplotlib.pyplot as plt
 import matplotlib
 import os
 import sys
-# start generic matplotlib styling implementation which would be good to have this able to be done generically.
-#and would be nice got to plot these things to make them nice and clean this up.
 basepath = "edinburgh_logs/edinburgh_logs/edinburgh_logs/"
 old_basepath = "edinburgh_experiments/edinburgh_experiments/edinburgh_experiments/"
 plt.style.use(['seaborn-white', 'seaborn-paper'])
